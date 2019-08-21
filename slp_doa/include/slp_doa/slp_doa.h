@@ -10,7 +10,15 @@ class SLPDOA: public StateLatticePlanner
 {
 public:
     SLPDOA(void);
+
+    void obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr&);
+    bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&);
+    bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&, double);
+
 private:
+    ros::Subscriber obstacle_pose_sub;
+
+    ObstacleTrackerKF tracker;
 };
 
 #endif// __SLP_DOA_H
