@@ -5,12 +5,11 @@ import subprocess
 import os
 
 if __name__=='__main__':
-    file_name = './dependency.repos'
+    dir_name = os.path.dirname(os.path.abspath(__file__))
+    file_name = dir_name + '/dependency.repos'
     repos = dict()
     with open(file_name, 'r') as f:
         repos = yaml.load(f)
-
-    dir_name = os.path.dirname(os.path.abspath("__file__"))
 
     for repository_name in repos['repositories']:
         repository = repos['repositories'][repository_name]
