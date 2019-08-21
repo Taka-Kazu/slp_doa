@@ -1,0 +1,7 @@
+<launch>
+
+    <test pkg="slp_doa" type="slp_doa_test" test-name="slp_doa_test">
+        <param name="LOOKUP_TABLE_FILE_NAME" value="$(find state_lattice_planner)/lookup_table/lookup_table.csv"/>
+    </test>
+
+</launch>

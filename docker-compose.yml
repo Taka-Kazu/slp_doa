@@ -3,5 +3,5 @@ services:
   master:
     build: ./docker
     volumes:
-      - ".:/root/catkin_ws/src/this_repository"
+      - ".:/root/catkin_ws/src/slp_doa"
     container_name: master

@@ -224,14 +224,14 @@ target_link_libraries(slp_doa
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-# if(CATKIN_ENABLE_TESTING)
-#     find_package(rostest REQUIRED)
-#     add_rostest_gtest(slp_doa_test
-#         test/slp_doa.test
-#         test/slp_doa_test.cpp
-#     )
-#     target_link_libraries(slp_doa_test
-#         ${catkin_LIBRARIES}
-#         slp_doa_lib
-#     )
-# endif()
+if(CATKIN_ENABLE_TESTING)
+    find_package(rostest REQUIRED)
+    add_rostest_gtest(slp_doa_test
+        test/slp_doa.test
+        test/slp_doa_test.cpp
+    )
+    target_link_libraries(slp_doa_test
+        ${catkin_LIBRARIES}
+        slp_doa_lib
+    )
+endif()

@@ -6,6 +6,7 @@ import os
 
 if __name__=='__main__':
     dir_name = os.path.dirname(os.path.abspath(__file__))
+    print dir_name
     file_name = dir_name + '/dependency.repos'
     repos = dict()
     with open(file_name, 'r') as f:
@@ -17,9 +18,9 @@ if __name__=='__main__':
         if repository['type'] == 'git':
             repo_dir_name = dir_name + '/' + os.path.basename('./' + repository_name)
             if not os.path.exists(repo_dir_name):
-                print 'git', 'clone', '-b', repository['version'], repository['url'], '--depth', '1'
+                print 'git', 'clone', '-b', repository['version'], repository['url'], '--depth', '1', repo_dir_name
                 try:
-                    result = subprocess.check_output(['git', 'clone', '-b', repository['version'], repository['url'], '--depth', '1'])
+                    result = subprocess.check_output(['git', 'clone', '-b', repository['version'], repository['url'], '--depth', '1', repo_dir_name])
                 except subprocess.CalledProcessError as e:
                     print e
                     exit(-1)
