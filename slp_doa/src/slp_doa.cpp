@@ -2,13 +2,55 @@
 
 SLPDOA::SLPDOA(void)
 {
-    std::cout << "======slp_doa ======" << std::endl;
+    local_nh.param("PREDICTION_TIME", PREDICTION_TIME, {3.5});
+    DT = HZ;
+    PREDICTION_STEP = round(PREDICTION_TIME / DT) + 1;
+
+    std::cout << " ======slp_doa ======" << std::endl;
+
+    std::cout << "PREDICTION_TIME" << PREDICTION_TIME << std::endl;
+    std::cout << "PREDICTION_STEP" << PREDICTION_STEP << std::endl;
+
+    obstacles_predicted_path_pub = local_nh.advertise<geometry_msgs::PoseArray>("/obstacle_predicted_paths", 1);
     obstacle_pose_sub = nh.subscribe("/dynamic_obstacles", 1, &SLPDOA::obstacle_pose_callback, this);
 }
 
 void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
 {
+    std::cout << "obstacle pose callback" << std::endl;
+    obstacle_pose = *msg;
+    tracker.set_obstacles_pose(obstacle_pose);
+    std::vector<Eigen::Vector3d> poses;
+    tracker.get_poses(poses);
+    int obs_num = poses.size();
+    std::vector<Eigen::Vector3d> velocities;
+    tracker.get_velocities(velocities);
 
+    obstacle_paths.header = obstacle_pose.header;
+    obstacle_paths.poses.clear();
+    for(int i=0;i<obs_num;i++){
+        std::cout << "obstacle " << i << ": "<< std::endl;
+        std::cout << poses[i] << std::endl;
+        std::cout << velocities[i] << std::endl;
+        geometry_msgs::Pose p;
+        p.position.x = poses[i](0);
+        p.position.y = poses[i](1);
+        p.orientation = tf::createQuaternionMsgFromYaw(poses[i](2));
+        obstacle_paths.poses.push_back(p);
+        for(int j=1;j<PREDICTION_STEP;j++){
+            p.position.x += velocities[i](0) * DT;
+            p.position.y += velocities[i](1) * DT;
+            double yaw = tf::getYaw(p.orientation);
+            yaw += velocities[i](2) * DT;
+            yaw = atan2(sin(yaw), cos(yaw));
+            p.orientation = tf::createQuaternionMsgFromYaw(yaw);
+            // std::cout << p << std::endl;
+            obstacle_paths.poses.push_back(p);
+        }
+    }
+    std::cout << "obs num: " << obs_num << std::endl;
+    std::cout << "obs path num: " << obstacle_paths.poses.size() << std::endl;
+    obstacles_predicted_path_pub.publish(obstacle_paths);
 }
 
 bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const std::vector<Eigen::Vector3d>& trajectory)

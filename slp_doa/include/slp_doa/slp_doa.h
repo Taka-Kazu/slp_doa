@@ -16,8 +16,15 @@ public:
     bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&, double);
 
 private:
+    double PREDICTION_TIME;
+    int PREDICTION_STEP;
+    double DT;
+
+    ros::Publisher obstacles_predicted_path_pub;
     ros::Subscriber obstacle_pose_sub;
 
+    geometry_msgs::PoseArray obstacle_pose;
+    geometry_msgs::PoseArray obstacle_paths;
     ObstacleTrackerKF tracker;
 };
 
