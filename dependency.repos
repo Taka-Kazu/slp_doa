@@ -1,0 +1,9 @@
+repositories:
+    amslabtech/state_lattice_planner:
+        type: git
+        url: https://github.com/amslabtech/state_lattice_planner.git
+        version: master
+    amslabtech/dynamic_obstacle_avoidance_planner:
+        type: git
+        url: https://github.com/amslabtech/dynamic_obstacle_avoidance_planner.git
+        version: master
