@@ -3,13 +3,13 @@
 SLPDOA::SLPDOA(void)
 {
     local_nh.param("PREDICTION_TIME", PREDICTION_TIME, {3.5});
-    DT = HZ;
+    DT = 1.0 / HZ;
     PREDICTION_STEP = round(PREDICTION_TIME / DT) + 1;
 
     std::cout << " ======slp_doa ======" << std::endl;
 
-    std::cout << "PREDICTION_TIME" << PREDICTION_TIME << std::endl;
-    std::cout << "PREDICTION_STEP" << PREDICTION_STEP << std::endl;
+    std::cout << "PREDICTION_TIME: " << PREDICTION_TIME << std::endl;
+    std::cout << "PREDICTION_STEP: " << PREDICTION_STEP << std::endl;
 
     obstacles_predicted_path_pub = local_nh.advertise<geometry_msgs::PoseArray>("/obstacle_predicted_paths", 1);
     obstacle_pose_sub = nh.subscribe("/dynamic_obstacles", 1, &SLPDOA::obstacle_pose_callback, this);
