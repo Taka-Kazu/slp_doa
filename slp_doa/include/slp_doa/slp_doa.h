@@ -21,7 +21,7 @@ public:
         ObstacleStates(void);
         ObstacleStates(int);
 
-        double calculate_probability(const Eigen::Vector2d&, int);
+        double calculate_probability(const Eigen::Vector2d&, int) const;
 
         std::vector<Eigen::Vector2d> pos;
         std::vector<Eigen::Vector2d> vel;
@@ -32,6 +32,8 @@ private:
     double PREDICTION_TIME;
     int PREDICTION_STEP;
     double DT;
+    double COLLISION_PROBABILITY_THRESHOLD;
+    std::string WORLD_FRAME;
 
     ros::Publisher obstacles_predicted_path_pub;
     ros::Subscriber obstacle_pose_sub;
@@ -39,6 +41,7 @@ private:
     geometry_msgs::PoseArray obstacle_pose;
     geometry_msgs::PoseArray obstacle_paths;
     ObstacleTrackerKF tracker;
+    std::vector<ObstacleStates> obstacle_states_list;
 };
 
 #endif// __SLP_DOA_H

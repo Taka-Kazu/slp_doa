@@ -3,16 +3,26 @@
 SLPDOA::SLPDOA(void)
 {
     local_nh.param("PREDICTION_TIME", PREDICTION_TIME, {3.5});
+    local_nh.param("COLLISION_PROBABILITY_THRESHOLD", COLLISION_PROBABILITY_THRESHOLD, {0.1});
+    local_nh.param("WORLD_FRAME", WORLD_FRAME, {"map"});
     DT = 1.0 / HZ;
     PREDICTION_STEP = round(PREDICTION_TIME / DT);
 
-    std::cout << " ======slp_doa ======" << std::endl;
+    if(COLLISION_PROBABILITY_THRESHOLD < 0.0 || 1.0 < COLLISION_PROBABILITY_THRESHOLD){
+        std::cout << "\033[31mthe range of COLLISION_PROBABILITY_THRESHOLD must be between 0.0 and 1.0\033[0m" << std::endl;
+        exit(-1);
+    }
+
+    std::cout << "====== slp_doa ======" << std::endl;
 
     std::cout << "PREDICTION_TIME: " << PREDICTION_TIME << std::endl;
     std::cout << "PREDICTION_STEP: " << PREDICTION_STEP << std::endl;
+    std::cout << "COLLISION_PROBABILITY_THRESHOLD: " << COLLISION_PROBABILITY_THRESHOLD << std::endl;
+    std::cout << "WORLD_FRAME: " << WORLD_FRAME << std::endl;
 
     obstacles_predicted_path_pub = local_nh.advertise<geometry_msgs::PoseArray>("/obstacle_predicted_paths", 1);
     obstacle_pose_sub = nh.subscribe("/dynamic_obstacles", 1, &SLPDOA::obstacle_pose_callback, this);
+    std::cout << std::endl;
 }
 
 SLPDOA::ObstacleStates::ObstacleStates(void)
@@ -27,7 +37,7 @@ SLPDOA::ObstacleStates::ObstacleStates(int prediction_step)
     cov.reserve(prediction_step);
 }
 
-double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& position, int step)
+double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& position, int step) const
 {
     if(step < 0){
         std::cout << "invalid time step" << std::endl;
@@ -43,11 +53,25 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
 {
     std::cout << "obstacle pose callback" << std::endl;
     obstacle_pose = *msg;
+    try{
+        for(auto& p : obstacle_pose.poses){
+            geometry_msgs::PoseStamped p_;
+            p_.header = obstacle_pose.header;
+            p_.pose = p;
+            listener.transformPose(WORLD_FRAME, p_, p_);
+            p = p_.pose;
+        }
+        obstacle_pose.header.frame_id = WORLD_FRAME;
+    }catch(tf::TransformException ex){
+        std::cout << ex.what() << std::endl;
+        return;
+    }
+
     tracker.set_obstacles_pose(obstacle_pose);
     int obs_num = tracker.obstacles.size();
 
     // prediction
-    std::vector<ObstacleStates> obstacle_states_list;
+    obstacle_states_list.clear();
     obstacle_states_list.reserve(obs_num);
     for(auto it=tracker.obstacles.begin();it!=tracker.obstacles.end();++it){
         ObstacleStates obstacle_states(PREDICTION_STEP);
@@ -61,6 +85,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
         obstacle_states_list.push_back(obstacle_states);
     }
 
+    // for debug
     obstacle_paths.header = obstacle_pose.header;
     obstacle_paths.poses.clear();
     for(int i=0;i<obs_num;i++){
@@ -96,6 +121,13 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
         //std::cout << xi << ", " << yi << std::endl;
         if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
             return true;
+        }else{
+            for(const auto& obs : obstacle_states_list){
+                double prob = obs.calculate_probability(bresenhams_line[i].segment(0, 2), i);
+                if(prob > COLLISION_PROBABILITY_THRESHOLD){
+                    return true;
+                }
+            }
         }
     }
     return false;
@@ -120,7 +152,16 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
             }else{
                 return true;
             }
+        }else{
+            for(const auto& obs : obstacle_states_list){
+                double prob = obs.calculate_probability(bresenhams_line[i].segment(0, 2), i);
+                if(prob > COLLISION_PROBABILITY_THRESHOLD){
+                    return true;
+                }
+            }
         }
+
+
     }
     return false;
 }
