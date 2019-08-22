@@ -6,4 +6,4 @@ repositories:
     amslabtech/dynamic_obstacle_avoidance_planner:
         type: git
         url: https://github.com/amslabtech/dynamic_obstacle_avoidance_planner.git
-        version: master
+        version: devel
