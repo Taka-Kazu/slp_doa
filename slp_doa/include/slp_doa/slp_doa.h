@@ -15,6 +15,19 @@ public:
     bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&);
     bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&, double);
 
+    class ObstacleStates
+    {
+    public:
+        ObstacleStates(void);
+        ObstacleStates(int);
+
+        double calculate_probability(const Eigen::Vector2d&, int);
+
+        std::vector<Eigen::Vector2d> pos;
+        std::vector<Eigen::Vector2d> vel;
+        std::vector<Eigen::Matrix2d> cov;
+    };
+
 private:
     double PREDICTION_TIME;
     int PREDICTION_STEP;
