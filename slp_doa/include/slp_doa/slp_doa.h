@@ -25,7 +25,7 @@ public:
 
         std::vector<Eigen::Vector2d> pos;
         std::vector<Eigen::Vector2d> vel;
-        std::vector<Eigen::Matrix2d> cov;
+        std::vector<Eigen::Matrix2d> vcov;
     };
 
 private:

@@ -34,7 +34,7 @@ SLPDOA::ObstacleStates::ObstacleStates(int prediction_step)
 {
     pos.reserve(prediction_step);
     vel.reserve(prediction_step);
-    cov.reserve(prediction_step);
+    vcov.reserve(prediction_step);
 }
 
 double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& position, int step) const
@@ -44,7 +44,7 @@ double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& posi
         exit(-1);
     }
     Eigen::Vector2d mu = pos[step];
-    Eigen::Matrix2d sigma = cov[step];
+    Eigen::Matrix2d sigma = vcov[step];
     double probability = 1. / (2 * M_PI * sqrt(sigma.determinant())) * std::exp(-0.5 * (position - mu).transpose() * sigma.inverse() * (position - mu));
     return probability;
 }
@@ -80,7 +80,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
             obs.predict(DT);
             obstacle_states.pos.push_back(obs.x.segment(0, 2));
             obstacle_states.vel.push_back(obs.x.segment(2, 2));
-            obstacle_states.cov.push_back(obs.p.block(0, 0, 2, 2));
+            obstacle_states.vcov.push_back(obs.p.block(0, 0, 2, 2));
         }
         obstacle_states_list.push_back(obstacle_states);
     }
