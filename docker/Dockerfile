@@ -24,5 +24,8 @@ ENV ROS_WORKSPACE=/root/catkin_ws
 
 RUN ln -sf /usr/include/eigen3/Eigen /usr/include/Eigen
 
-# clone repository
 WORKDIR /root
+
+COPY ./ros_entrypoint.sh /
+
+CMD ["/ros_entrypoint.sh"]
