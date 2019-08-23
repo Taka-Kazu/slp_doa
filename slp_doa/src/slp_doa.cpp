@@ -111,6 +111,16 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     /*
      * if given trajectory is considered to collide with an obstacle, return true
      */
+    Eigen::Matrix3d rot;
+    try{
+        tf::StampedTransform stamped_transform;
+        listener.lookupTransform(ROBOT_FRAME, WORLD_FRAME, ros::Time(0), stamped_transform);
+        Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
+        rot = q;
+    }catch(tf::TransformException ex){
+        std::cout << ex.what() << std::endl;
+        return true;
+    }
     double resolution = local_costmap.info.resolution;
     std::vector<Eigen::Vector3d> bresenhams_line;
     generate_bresemhams_line(trajectory, resolution, bresenhams_line);
@@ -123,7 +133,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
             return true;
         }else{
             for(const auto& obs : obstacle_states_list){
-                double prob = obs.calculate_probability(bresenhams_line[i].segment(0, 2), i);
+                double prob = obs.calculate_probability((rot * bresenhams_line[i]).segment(0, 2), i);
                 if(prob > COLLISION_PROBABILITY_THRESHOLD){
                     return true;
                 }
@@ -138,6 +148,16 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     /*
      * if given trajectory is considered to collide with an obstacle, return true
      */
+    Eigen::Matrix3d rot;
+    try{
+        tf::StampedTransform stamped_transform;
+        listener.lookupTransform(ROBOT_FRAME, WORLD_FRAME, ros::Time(0), stamped_transform);
+        Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
+        rot = q;
+    }catch(tf::TransformException ex){
+        std::cout << ex.what() << std::endl;
+        return true;
+    }
     double resolution = local_costmap.info.resolution;
     std::vector<Eigen::Vector3d> bresenhams_line;
     generate_bresemhams_line(trajectory, resolution, bresenhams_line);
@@ -154,7 +174,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
             }
         }else{
             for(const auto& obs : obstacle_states_list){
-                double prob = obs.calculate_probability(bresenhams_line[i].segment(0, 2), i);
+                double prob = obs.calculate_probability((rot * bresenhams_line[i]).segment(0, 2), i);
                 if(prob > COLLISION_PROBABILITY_THRESHOLD){
                     return true;
                 }
