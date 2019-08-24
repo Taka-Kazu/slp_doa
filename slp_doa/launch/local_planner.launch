@@ -29,9 +29,9 @@
         <param name="IGNORABLE_OBSTACLE_RANGE" value="$(arg ignorable_obstacle_range)"/>
         <param name="COLLISION_PROBABILITY_THRESHOLD" value="$(arg collision_probability_threshold)"/>
         <param name="WORLD_FRAME" value="$(arg world_frame)"/>
-        <remap from="/local_map" to="/local_map/expand"/>
+        <remap from="/local_map" to="/local_costmap"/>
         <remap from="/local_goal" to="/local_goal"/>
-        <remap from="/cmd_vel" to="/local_path/cmd_vel"/>
+        <remap from="/cmd_vel" to="/velocity"/>
         <remap from="/odom" to="/odom"/>
     </node>
 </launch>
