@@ -94,9 +94,9 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
         std::cout << obstacle_states_list[i].vel[0] << std::endl;
         for(int j=0;j<PREDICTION_STEP;j++){
             geometry_msgs::Pose p;
-            p.position.x = obstacle_states_list[i].pos[i](0);
-            p.position.y = obstacle_states_list[i].pos[i](1);
-            p.orientation = tf::createQuaternionMsgFromYaw(atan2(obstacle_states_list[i].vel[i](1), obstacle_states_list[i].vel[i](0)));
+            p.position.x = obstacle_states_list[i].pos[j](0);
+            p.position.y = obstacle_states_list[i].pos[j](1);
+            p.orientation = tf::createQuaternionMsgFromYaw(atan2(obstacle_states_list[i].vel[j](1), obstacle_states_list[i].vel[j](0)));
             // std::cout << p << std::endl;
             obstacle_paths.poses.push_back(p);
         }
