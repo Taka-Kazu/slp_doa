@@ -14,6 +14,7 @@ public:
     void obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr&);
     bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&);
     bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&, double);
+    void process(void);
 
     class ObstacleStates
     {

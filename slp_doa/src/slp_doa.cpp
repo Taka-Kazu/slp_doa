@@ -134,6 +134,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
         }else{
             for(const auto& obs : obstacle_states_list){
                 double prob = obs.calculate_probability((rot * bresenhams_line[i]).segment(0, 2), i);
+                std::cout << prob << std::endl;
                 if(prob > COLLISION_PROBABILITY_THRESHOLD){
                     return true;
                 }
@@ -185,3 +186,117 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     }
     return false;
 }
+
+void SLPDOA::process(void)
+{
+    ros::Rate loop_rate(HZ);
+
+    while(ros::ok()){
+        bool goal_transformed = false;
+        geometry_msgs::PoseStamped local_goal_base_link;
+        if(local_goal_subscribed){
+            try{
+                listener.transformPose("/base_link", ros::Time(0), local_goal, local_goal.header.frame_id, local_goal_base_link);
+                goal_transformed = true;
+            }catch(tf::TransformException ex){
+                std::cout << ex.what() << std::endl;
+            }
+        }
+        if(local_goal_subscribed && local_map_updated && odom_updated && goal_transformed){
+            std::cout << "=== slp_doa ===" << std::endl;
+            double start = ros::Time::now().toSec();
+            std::cout << "local goal: \n" << local_goal_base_link << std::endl;
+            std::cout << "current_velocity: \n" << current_velocity << std::endl;
+            Eigen::Vector3d goal(local_goal_base_link.pose.position.x, local_goal_base_link.pose.position.y, tf::getYaw(local_goal_base_link.pose.orientation));
+            std::vector<Eigen::Vector3d> states;
+            double target_velocity = get_target_velocity(goal);
+            generate_biased_polar_states(N_S, goal, sampling_params, target_velocity, states);
+            std::vector<MotionModelDiffDrive::Trajectory> trajectories;
+            bool generated = generate_trajectories(states, current_velocity.linear.x, current_velocity.angular.z, target_velocity, trajectories);
+            if(generated){
+                visualize_trajectories(trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub);
+
+                std::cout << "check candidate trajectories" << std::endl;
+                std::vector<MotionModelDiffDrive::Trajectory> candidate_trajectories;
+                for(const auto& trajectory : trajectories){
+                    if(!check_collision(local_map, trajectory.trajectory)){
+                        candidate_trajectories.push_back(trajectory);
+                    }
+                }
+                std::cout << "trajectories: " << trajectories.size() << std::endl;
+                std::cout << "candidate_trajectories: " << candidate_trajectories.size() << std::endl;
+                if(candidate_trajectories.empty()){
+                    // if no candidate trajectories
+                    // collision checking with relaxed restrictions
+                    for(const auto& trajectory : trajectories){
+                        if(!check_collision(local_map, trajectory.trajectory, IGNORABLE_OBSTACLE_RANGE)){
+                            candidate_trajectories.push_back(trajectory);
+                        }
+                    }
+                    std::cout << "candidate_trajectories(ignore far obstacles): " << candidate_trajectories.size() << std::endl;
+                }
+                // std::cout << "candidate time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
+                if(candidate_trajectories.size() > 0){
+                    visualize_trajectories(candidate_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
+
+                    std::cout << "pickup a optimal trajectory from candidate trajectories" << std::endl;
+                    MotionModelDiffDrive::Trajectory trajectory;
+                    pickup_trajectory(candidate_trajectories, goal, trajectory);
+                    visualize_trajectory(trajectory, 1, 0, 0, selected_trajectory_pub);
+                    std::cout << "pickup time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
+
+                    std::cout << "publish velocity" << std::endl;
+                    geometry_msgs::Twist cmd_vel;
+                    double calculation_time = ros::Time::now().toSec() - start;
+                    int delayed_control_index = std::ceil(calculation_time * HZ);
+                    std::cout << calculation_time << ", " << delayed_control_index << std::endl;
+                    cmd_vel.linear.x = trajectory.velocities[delayed_control_index];
+                    cmd_vel.angular.z = trajectory.angular_velocities[delayed_control_index];
+                    velocity_pub.publish(cmd_vel);
+                    std::cout << "published velocity: \n" << cmd_vel << std::endl;
+
+                    local_map_updated = false;
+                    odom_updated = false;
+                }else{
+                    std::cout << "\033[91mERROR: stacking\033[00m" << std::endl;
+                    geometry_msgs::Twist cmd_vel;
+                    cmd_vel.linear.x = 0;
+                    cmd_vel.angular.z = 0;
+                    velocity_pub.publish(cmd_vel);
+                    // for clear
+                    std::vector<MotionModelDiffDrive::Trajectory> clear_trajectories;
+                    visualize_trajectories(clear_trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub);
+                    visualize_trajectories(clear_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
+                    visualize_trajectory(MotionModelDiffDrive::Trajectory(), 1, 0, 0, selected_trajectory_pub);
+                }
+            }else{
+                std::cout << "\033[91mERROR: no optimized trajectory was generated\033[00m" << std::endl;
+                std::cout << "\033[91mturn for local goal\033[00m" << std::endl;
+                double relative_direction = atan2(local_goal_base_link.pose.position.y, local_goal_base_link.pose.position.x);
+                geometry_msgs::Twist cmd_vel;
+                cmd_vel.linear.x = 0;
+                cmd_vel.angular.z =  0.2 * ((relative_direction > 0) ? 1 : -1);
+                velocity_pub.publish(cmd_vel);
+                // for clear
+                std::vector<MotionModelDiffDrive::Trajectory> clear_trajectories;
+                visualize_trajectories(clear_trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub);
+                visualize_trajectories(clear_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
+                visualize_trajectory(MotionModelDiffDrive::Trajectory(), 1, 0, 0, selected_trajectory_pub);
+            }
+            std::cout << "final time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
+        }else{
+            if(!local_goal_subscribed){
+                std::cout << "waiting for local goal" << std::endl;
+            }
+            if(!local_map_updated){
+                std::cout << "waiting for local map" << std::endl;
+            }
+            if(!odom_updated){
+                std::cout << "waiting for odom" << std::endl;
+            }
+        }
+        ros::spinOnce();
+        loop_rate.sleep();
+    }
+}
+
