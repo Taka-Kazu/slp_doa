@@ -20,13 +20,14 @@ public:
     {
     public:
         ObstacleStates(void);
-        ObstacleStates(int);
+        ObstacleStates(int, double);
 
         double calculate_probability(const Eigen::Vector2d&, int) const;
 
         std::vector<Eigen::Vector2d> pos;
         std::vector<Eigen::Vector2d> vel;
         std::vector<Eigen::Matrix2d> vcov;
+        double squared_resolution;
     };
 
 private:

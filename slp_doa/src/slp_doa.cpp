@@ -27,14 +27,16 @@ SLPDOA::SLPDOA(void)
 
 SLPDOA::ObstacleStates::ObstacleStates(void)
 {
-
+    squared_resolution = 0.0;
 }
 
-SLPDOA::ObstacleStates::ObstacleStates(int prediction_step)
+SLPDOA::ObstacleStates::ObstacleStates(int prediction_step, double resolution)
 {
     pos.reserve(prediction_step);
     vel.reserve(prediction_step);
     vcov.reserve(prediction_step);
+    // squared_resolution = resolution * resolution;
+    squared_resolution = 0.6 * 0.6;
 }
 
 double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& position, int step) const
@@ -46,6 +48,18 @@ double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& posi
     Eigen::Vector2d mu = pos[step];
     Eigen::Matrix2d sigma = vcov[step];
     double probability = 1. / (2 * M_PI * sqrt(sigma.determinant())) * std::exp(-0.5 * (position - mu).transpose() * sigma.inverse() * (position - mu));
+    probability *= squared_resolution;
+    // if((position - mu).norm() < 0.6){
+        // std::cout << "t=" << step << std::endl;
+        // std::cout << "position:\n" << position << std::endl;
+        // std::cout << "mu:\n" << mu << std::endl;
+        // std::cout << "sigma:\n" << sigma << std::endl;
+        // std::cout << "prob: " << probability << std::endl;
+    // }
+    if(std::isnan(probability) or std::isinf(probability)){
+        std::cout << probability << std::endl;
+        exit(-1);
+    }
     return probability;
 }
 
@@ -74,7 +88,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
     obstacle_states_list.clear();
     obstacle_states_list.reserve(obs_num);
     for(auto it=tracker.obstacles.begin();it!=tracker.obstacles.end();++it){
-        ObstacleStates obstacle_states(PREDICTION_STEP);
+        ObstacleStates obstacle_states(PREDICTION_STEP, local_map.info.resolution);
         Obstacle obs = it->second;
         for(int i=0;i<PREDICTION_STEP;i++){
             obs.predict(DT);
@@ -111,31 +125,33 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     /*
      * if given trajectory is considered to collide with an obstacle, return true
      */
-    Eigen::Matrix3d rot;
+    Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
-        listener.lookupTransform(ROBOT_FRAME, WORLD_FRAME, ros::Time(0), stamped_transform);
+        listener.lookupTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time(0), stamped_transform);
+        Eigen::Translation<double, 3> trans(stamped_transform.getOrigin().x(), stamped_transform.getOrigin().y(), stamped_transform.getOrigin().z());
         Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
-        rot = q;
+        affine = trans * q;
     }catch(tf::TransformException ex){
         std::cout << ex.what() << std::endl;
         return true;
     }
     double resolution = local_costmap.info.resolution;
-    std::vector<Eigen::Vector3d> bresenhams_line;
-    generate_bresemhams_line(trajectory, resolution, bresenhams_line);
-    int size = bresenhams_line.size();
-    for(int i=0;i<size;i++){
-        int xi = round((bresenhams_line[i](0) - local_costmap.info.origin.position.x) / resolution);
-        int yi = round((bresenhams_line[i](1) - local_costmap.info.origin.position.y) / resolution);
-        //std::cout << xi << ", " << yi << std::endl;
+    int size = trajectory.size();
+    for(int i=0;i<PREDICTION_STEP;i++){
+        if(i == size){
+            break;
+        }
+        int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
+        int yi = round((trajectory[i](1) - local_costmap.info.origin.position.y) / resolution);
         if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
             return true;
         }else{
             for(const auto& obs : obstacle_states_list){
-                double prob = obs.calculate_probability((rot * bresenhams_line[i]).segment(0, 2), i);
-                std::cout << prob << std::endl;
+                double prob = obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i);
                 if(prob > COLLISION_PROBABILITY_THRESHOLD){
+                    std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << prob << "\033[0m" << std::endl;
+                    std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
                     return true;
                 }
             }
@@ -149,40 +165,38 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     /*
      * if given trajectory is considered to collide with an obstacle, return true
      */
-    Eigen::Matrix3d rot;
+    Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
-        listener.lookupTransform(ROBOT_FRAME, WORLD_FRAME, ros::Time(0), stamped_transform);
+        listener.lookupTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time(0), stamped_transform);
+        Eigen::Translation<double, 3> trans(stamped_transform.getOrigin().x(), stamped_transform.getOrigin().y(), stamped_transform.getOrigin().z());
         Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
-        rot = q;
+        affine = trans * q;
     }catch(tf::TransformException ex){
         std::cout << ex.what() << std::endl;
         return true;
     }
     double resolution = local_costmap.info.resolution;
-    std::vector<Eigen::Vector3d> bresenhams_line;
-    generate_bresemhams_line(trajectory, resolution, bresenhams_line);
-    int size = bresenhams_line.size();
-    for(int i=0;i<size;i++){
-        int xi = round((bresenhams_line[i](0) - local_costmap.info.origin.position.x) / resolution);
-        int yi = round((bresenhams_line[i](1) - local_costmap.info.origin.position.y) / resolution);
+    int size = trajectory.size();
+    // for(int i=0;i<size;i++){
+    for(int i=0;i<PREDICTION_STEP;i++){
+        int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
+        int yi = round((trajectory[i](1) - local_costmap.info.origin.position.y) / resolution);
         //std::cout << xi << ", " << yi << std::endl;
         if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
-            if(bresenhams_line[i].norm() > range){
+            if(trajectory[i].norm() > range){
                 return false;
             }else{
                 return true;
             }
         }else{
             for(const auto& obs : obstacle_states_list){
-                double prob = obs.calculate_probability((rot * bresenhams_line[i]).segment(0, 2), i);
+                double prob = obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i);
                 if(prob > COLLISION_PROBABILITY_THRESHOLD){
                     return true;
                 }
             }
         }
-
-
     }
     return false;
 }
