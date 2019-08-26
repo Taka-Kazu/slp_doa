@@ -138,24 +138,23 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     }
     double resolution = local_costmap.info.resolution;
     int size = trajectory.size();
-    for(int i=0;i<PREDICTION_STEP;i++){
-        if(i == size){
-            break;
-        }
+    for(int i=0;i<size;i++){
         int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
         int yi = round((trajectory[i](1) - local_costmap.info.origin.position.y) / resolution);
         if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
             return true;
         }else{
-            double no_collision_probability = 1;
-            for(const auto& obs : obstacle_states_list){
-                no_collision_probability *= 1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i);
-            }
-            double collision_probability = 1 - no_collision_probability;
-            if(collision_probability > COLLISION_PROBABILITY_THRESHOLD){
-                std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
-                std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
-                return true;
+            if(i < PREDICTION_STEP){
+                double no_collision_probability = 1;
+                for(const auto& obs : obstacle_states_list){
+                    no_collision_probability *= 1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i);
+                }
+                double collision_probability = 1 - no_collision_probability;
+                if(collision_probability > COLLISION_PROBABILITY_THRESHOLD){
+                    std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
+                    std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
+                    return true;
+                }
             }
         }
     }
@@ -181,10 +180,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     double resolution = local_costmap.info.resolution;
     int size = trajectory.size();
     // for(int i=0;i<size;i++){
-    for(int i=0;i<PREDICTION_STEP;i++){
-        if(i == size){
-            break;
-        }
+    for(int i=0;i<size;i++){
         int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
         int yi = round((trajectory[i](1) - local_costmap.info.origin.position.y) / resolution);
         //std::cout << xi << ", " << yi << std::endl;
@@ -195,15 +191,17 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
                 return true;
             }
         }else{
-            double no_collision_probability = 1;
-            for(const auto& obs : obstacle_states_list){
-                no_collision_probability *= 1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i);
-            }
-            double collision_probability = 1 - no_collision_probability;
-            if(collision_probability > COLLISION_PROBABILITY_THRESHOLD){
-                std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
-                std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
-                return true;
+            if(i < PREDICTION_STEP){
+                double no_collision_probability = 1;
+                for(const auto& obs : obstacle_states_list){
+                    no_collision_probability *= 1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i);
+                }
+                double collision_probability = 1 - no_collision_probability;
+                if(collision_probability > COLLISION_PROBABILITY_THRESHOLD){
+                    std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
+                    std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
+                    return true;
+                }
             }
         }
     }
