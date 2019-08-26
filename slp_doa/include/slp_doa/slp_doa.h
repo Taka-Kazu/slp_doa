@@ -23,6 +23,7 @@ public:
         ObstacleStates(int, double);
 
         double calculate_probability(const Eigen::Vector2d&, int) const;
+        double square(double) const;
 
         std::vector<Eigen::Vector2d> pos;
         std::vector<Eigen::Vector2d> vel;
@@ -31,6 +32,7 @@ public:
     };
 
 private:
+
     double PREDICTION_TIME;
     int PREDICTION_STEP;
     double DT;

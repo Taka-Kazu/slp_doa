@@ -15,7 +15,7 @@
     <arg name="ignorable_obstacle_range" default="1.0"/>
     <arg name="verbose" default="false"/>
     <arg name="prediction_step" default="3.5"/>
-    <arg name="collision_probability_threshold" default="0.02"/>
+    <arg name="collision_probability_threshold" default="0.1"/>
     <arg name="world_frame" default="map"/>
 
     <node pkg="slp_doa" type="slp_doa" name="slp_doa" ns="local_planner">

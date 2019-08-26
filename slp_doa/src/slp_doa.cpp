@@ -38,6 +38,11 @@ SLPDOA::ObstacleStates::ObstacleStates(int prediction_step, double resolution_)
     resolution = resolution_;
 }
 
+double SLPDOA::ObstacleStates::square(double val) const
+{
+    return val * val;
+}
+
 double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& position, int step) const
 {
     if(step < 0){
@@ -49,21 +54,23 @@ double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& posi
     double coeff = 1. / (2 * M_PI * sqrt(sigma.determinant()));
     double avoidance_radius = 0.6;
     double probability = 0;
-    for(double x=position(0)-avoidance_radius;x<position(0)+avoidance_radius;x+=resolution){
-        for(double y=position(1)-avoidance_radius;y<position(1)+avoidance_radius;y+=resolution){
+    for(double y=position(1)-avoidance_radius;y<position(1)+avoidance_radius;y+=resolution){
+        double x0 = position(0) - sqrt(square(avoidance_radius) - square(y - position(1)));
+        double x1 = position(0) + sqrt(square(avoidance_radius) - square(y - position(1)));
+        for(double x=x0;x<x1;x+=resolution){
             Eigen::Vector2d p(x, y);
             double probability_ =  coeff * std::exp(-0.5 * (p - mu).transpose() * sigma.inverse() * (p - mu));
             probability += probability_;
         }
     }
-    probability *= coeff * resolution * resolution;
-    if((position - mu).norm() < 0.6){
-        std::cout << "t=" << step << std::endl;
-        std::cout << "position:\n" << position.transpose() << std::endl;
-        std::cout << "mu:\n" << mu.transpose() << std::endl;
-        std::cout << "sigma:\n" << sigma << std::endl;
-        std::cout << "prob: " << probability << std::endl;
-    }
+    probability *= coeff * square(resolution);
+    // if((position - mu).norm() < avoidance_radius){
+    //     std::cout << "t=" << step << std::endl;
+    //     std::cout << "position:\n" << position.transpose() << std::endl;
+    //     std::cout << "mu:\n" << mu.transpose() << std::endl;
+    //     std::cout << "sigma:\n" << sigma << std::endl;
+    //     std::cout << "prob: " << probability << std::endl;
+    // }
     if(std::isnan(probability) or std::isinf(probability)){
         std::cout << probability << std::endl;
         exit(-1);
@@ -328,4 +335,3 @@ void SLPDOA::process(void)
         loop_rate.sleep();
     }
 }
-
