@@ -47,7 +47,7 @@ Visualization Manager:
         Y: 0
         Z: 0
       Plane: XY
-      Plane Cell Count: 10
+      Plane Cell Count: 100
       Reference Frame: <Fixed Frame>
       Value: true
     - Alpha: 0.699999988
@@ -97,7 +97,6 @@ Visualization Manager:
       Marker Topic: /local_planner/slp_doa/candidate_trajectories/no_collision
       Name: MarkerArray
       Namespaces:
-        /local_planner/slp_doa/candidate_trajectories: true
         /local_planner/slp_doa/candidate_trajectories/no_collision: true
       Queue Size: 100
       Value: true
@@ -157,9 +156,9 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: 6.29686499
+        Y: -0.304543436
+        Z: 0.0062956796
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
