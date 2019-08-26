@@ -14,7 +14,8 @@
     <arg name="optimization_tolerance" default="0.1"/>
     <arg name="ignorable_obstacle_range" default="1.0"/>
     <arg name="verbose" default="false"/>
-    <arg name="collision_probability_threshold" default="0.03"/>
+    <arg name="prediction_step" default="3.5"/>
+    <arg name="collision_probability_threshold" default="0.02"/>
     <arg name="world_frame" default="map"/>
 
     <node pkg="slp_doa" type="slp_doa" name="slp_doa" ns="local_planner">
@@ -31,6 +32,7 @@
         <param name="OPTIMIZATION_TOLERANCE" value="$(arg optimization_tolerance)"/>
         <param name="IGNORABLE_OBSTACLE_RANGE" value="$(arg ignorable_obstacle_range)"/>
         <param name="VERBOSE" value="$(arg verbose)"/>
+        <param name="PREDICTION_STEP" value="$(arg prediction_step)"/>
         <param name="COLLISION_PROBABILITY_THRESHOLD" value="$(arg collision_probability_threshold)"/>
         <param name="WORLD_FRAME" value="$(arg world_frame)"/>
         <remap from="/local_map" to="/local_costmap"/>
