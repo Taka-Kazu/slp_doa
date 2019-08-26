@@ -27,16 +27,15 @@ SLPDOA::SLPDOA(void)
 
 SLPDOA::ObstacleStates::ObstacleStates(void)
 {
-    squared_resolution = 0.0;
+    resolution = 0.0;
 }
 
-SLPDOA::ObstacleStates::ObstacleStates(int prediction_step, double resolution)
+SLPDOA::ObstacleStates::ObstacleStates(int prediction_step, double resolution_)
 {
     pos.reserve(prediction_step);
     vel.reserve(prediction_step);
     vcov.reserve(prediction_step);
-    // squared_resolution = resolution * resolution;
-    squared_resolution = 0.6 * 0.6;
+    resolution = resolution_;
 }
 
 double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& position, int step) const
@@ -47,8 +46,16 @@ double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& posi
     }
     Eigen::Vector2d mu = pos[step];
     Eigen::Matrix2d sigma = vcov[step];
-    double probability = 1. / (2 * M_PI * sqrt(sigma.determinant())) * std::exp(-0.5 * (position - mu).transpose() * sigma.inverse() * (position - mu));
-    probability *= squared_resolution;
+    double avoidance_radius = 0.6;
+    double probability = 0;
+    for(double x=position(0)-avoidance_radius;x<position(0)+avoidance_radius;x+=resolution){
+        for(double y=position(1)-avoidance_radius;y<position(1)+avoidance_radius;y+=resolution){
+            Eigen::Vector2d p(x, y);
+            double probability_ = 1. / (2 * M_PI * sqrt(sigma.determinant())) * std::exp(-0.5 * (p - mu).transpose() * sigma.inverse() * (p - mu));
+            probability += probability_;
+        }
+    }
+    probability *= resolution * resolution;
     // if((position - mu).norm() < 0.6){
         // std::cout << "t=" << step << std::endl;
         // std::cout << "position:\n" << position << std::endl;
@@ -152,7 +159,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
                 double collision_probability = 1 - no_collision_probability;
                 if(collision_probability > COLLISION_PROBABILITY_THRESHOLD){
                     std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
-                    std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
+                    std::cout << (affine * trajectory[0]).segment(0, 2).transpose() << " -> " << (affine * trajectory[i]).segment(0, 2).transpose() << std::endl;
                     return true;
                 }
             }
@@ -198,8 +205,8 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
                 }
                 double collision_probability = 1 - no_collision_probability;
                 if(collision_probability > COLLISION_PROBABILITY_THRESHOLD){
-                    std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
-                    std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
+                    // std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
+                    // std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
                     return true;
                 }
             }
