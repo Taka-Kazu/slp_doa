@@ -3,8 +3,8 @@
 <launch>
     <arg name="hz" default="10"/>
     <arg name="robot_frame" default="base_link"/>
-    <arg name="n_p" default="31"/>
-    <arg name="n_h" default="5"/>
+    <arg name="n_p" default="15"/>
+    <arg name="n_h" default="3"/>
     <arg name="max_alpha" default="1.6"/>
     <arg name="max_psi" default="1.0"/>
     <arg name="n_s" default="1000"/>

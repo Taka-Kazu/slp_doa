@@ -144,6 +144,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
+        listener.waitForTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time::now(), ros::Duration(1.0));
         listener.lookupTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time(0), stamped_transform);
         Eigen::Translation<double, 3> trans(stamped_transform.getOrigin().x(), stamped_transform.getOrigin().y(), stamped_transform.getOrigin().z());
         Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
@@ -162,7 +163,9 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
         }else{
             if(i < PREDICTION_STEP){
                 double no_collision_probability = 1;
+                int count = 0;
                 for(const auto& obs : obstacle_states_list){
+                    count++;
                     no_collision_probability *= (1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i));
                 }
                 double collision_probability = 1 - no_collision_probability;
@@ -185,6 +188,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
+        listener.waitForTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time::now(), ros::Duration(1.0));
         listener.lookupTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time(0), stamped_transform);
         Eigen::Translation<double, 3> trans(stamped_transform.getOrigin().x(), stamped_transform.getOrigin().y(), stamped_transform.getOrigin().z());
         Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
@@ -233,7 +237,8 @@ void SLPDOA::process(void)
         geometry_msgs::PoseStamped local_goal_base_link;
         if(local_goal_subscribed){
             try{
-                listener.transformPose("/base_link", ros::Time(0), local_goal, local_goal.header.frame_id, local_goal_base_link);
+                listener.waitForTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time::now(), ros::Duration(1.0));
+                listener.transformPose(ROBOT_FRAME, ros::Time(0), local_goal, local_goal.header.frame_id, local_goal_base_link);
                 goal_transformed = true;
             }catch(tf::TransformException ex){
                 std::cout << ex.what() << std::endl;
@@ -255,12 +260,12 @@ void SLPDOA::process(void)
 
                 std::cout << "check candidate trajectories" << std::endl;
                 std::vector<MotionModelDiffDrive::Trajectory> candidate_trajectories;
+                std::cout << "trajectories: " << trajectories.size() << std::endl;
                 for(const auto& trajectory : trajectories){
                     if(!check_collision(local_map, trajectory.trajectory)){
                         candidate_trajectories.push_back(trajectory);
                     }
                 }
-                std::cout << "trajectories: " << trajectories.size() << std::endl;
                 std::cout << "candidate_trajectories: " << candidate_trajectories.size() << std::endl;
                 if(candidate_trajectories.empty()){
                     // if no candidate trajectories
