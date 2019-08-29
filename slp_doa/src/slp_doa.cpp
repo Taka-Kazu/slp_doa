@@ -87,6 +87,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
             geometry_msgs::PoseStamped p_;
             p_.header = obstacle_pose.header;
             p_.pose = p;
+            listener.waitForTransform(WORLD_FRAME, p_.header.frame_id, p_.header.stamp, ros::Duration(1.0));
             listener.transformPose(WORLD_FRAME, p_, p_);
             p = p_.pose;
         }
