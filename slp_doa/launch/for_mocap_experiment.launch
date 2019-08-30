@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<launch>
+
+    <rosparam command="load" file="$(find dynamic_obstacle_avoidance_planner)/config/dynamic_avoidance.yaml"/>
+
+    <include file="$(find dynamic_obstacle_avoidance_planner)/launch/for_mocap_experiment.launch"/>
+
+    <node pkg="slp_doa" type="fake_local_costmap_generator" name="fake_local_costmap_generator">
+        <param name="ENABLE_STATIC_OBSTACLE" value="false"/>
+        <param name="COLLISION_RADIUS" value="0.6"/>
+    </node>
+
+    <node pkg="slp_doa" type="fake_local_goal_publisher" name="fake_local_goal_publisher">
+    </node>
+
+
+</launch>
