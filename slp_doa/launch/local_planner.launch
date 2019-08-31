@@ -21,6 +21,7 @@
     <node pkg="slp_doa" type="slp_doa" name="slp_doa" ns="local_planner">
         <rosparam command="load" file="$(find state_lattice_planner)/config/robot_param.yaml" />
         <param name="HZ" value="$(arg hz)"/>
+        <param name="ROBOT_FRAME" value="$(arg robot_frame)"/>
         <param name="N_P" value="$(arg n_p)"/>
         <param name="N_H" value="$(arg n_h)"/>
         <param name="MAX_ALPHA" value="$(arg max_alpha)"/>
