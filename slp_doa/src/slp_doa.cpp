@@ -100,6 +100,9 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
     tracker.set_obstacles_pose(obstacle_pose);
     int obs_num = tracker.obstacles.size();
 
+    if(local_map.data.empty()){
+        return;
+    }
     // prediction
     obstacle_states_list.clear();
     obstacle_states_list.reserve(obs_num);
@@ -117,6 +120,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
 
     // for debug
     obstacle_paths.header = obstacle_pose.header;
+    obstacle_paths.header.frame_id = WORLD_FRAME;
     obstacle_paths.poses.clear();
     for(int i=0;i<obs_num;i++){
         std::cout << "obstacle " << i << ": "<< std::endl;
@@ -126,6 +130,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
             geometry_msgs::Pose p;
             p.position.x = obstacle_states_list[i].pos[j](0);
             p.position.y = obstacle_states_list[i].pos[j](1);
+            p.position.z = 0.0;
             p.orientation = tf::createQuaternionMsgFromYaw(atan2(obstacle_states_list[i].vel[j](1), obstacle_states_list[i].vel[j](0)));
             // std::cout << p << std::endl;
             obstacle_paths.poses.push_back(p);
@@ -144,7 +149,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
-        listener.waitForTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time::now(), ros::Duration(1.0));
+        // listener.waitForTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time::now(), ros::Duration(1.0));
         listener.lookupTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time(0), stamped_transform);
         Eigen::Translation<double, 3> trans(stamped_transform.getOrigin().x(), stamped_transform.getOrigin().y(), stamped_transform.getOrigin().z());
         Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
@@ -188,7 +193,7 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
     Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
-        listener.waitForTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time::now(), ros::Duration(1.0));
+        // listener.waitForTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time::now(), ros::Duration(1.0));
         listener.lookupTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time(0), stamped_transform);
         Eigen::Translation<double, 3> trans(stamped_transform.getOrigin().x(), stamped_transform.getOrigin().y(), stamped_transform.getOrigin().z());
         Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
