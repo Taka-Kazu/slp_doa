@@ -63,7 +63,7 @@ double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& posi
             probability += probability_;
         }
     }
-    probability *= coeff * square(resolution);
+    probability *= square(resolution);
     // if((position - mu).norm() < avoidance_radius){
     //     std::cout << "t=" << step << std::endl;
     //     std::cout << "position:\n" << position.transpose() << std::endl;
