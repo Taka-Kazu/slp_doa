@@ -11,11 +11,6 @@ class SLPDOA: public StateLatticePlanner
 public:
     SLPDOA(void);
 
-    void obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr&);
-    bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&);
-    bool check_collision(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&, double);
-    void process(void);
-
     class ObstacleStates
     {
     public:
@@ -31,15 +26,32 @@ public:
         double resolution;
     };
 
+    class ProbabilityWithTimeStep
+    {
+    public:
+        ProbabilityWithTimeStep(void);
+        ProbabilityWithTimeStep(unsigned int, double);
+
+        unsigned int time_step;
+        double probability;
+    };
+
+
+    void obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr&);
+    ProbabilityWithTimeStep get_collision_probability(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&);
+    void generate_probability_map(unsigned int);
+    void process(void);
+
 private:
 
     double PREDICTION_TIME;
-    int PREDICTION_STEP;
+    unsigned int PREDICTION_STEP;
     double DT;
     double COLLISION_PROBABILITY_THRESHOLD;
     std::string WORLD_FRAME;
 
     ros::Publisher obstacles_predicted_path_pub;
+    ros::Publisher probability_map_pub;
     ros::Subscriber obstacle_pose_sub;
 
     geometry_msgs::PoseArray obstacle_pose;

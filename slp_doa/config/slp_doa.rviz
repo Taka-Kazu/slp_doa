@@ -56,7 +56,7 @@ Visualization Manager:
       Draw Behind: false
       Enabled: true
       Name: Map
-      Topic: /local_costmap
+      Topic: /probability_map
       Unreliable: false
       Use Timestamp: false
       Value: true
@@ -66,7 +66,7 @@ Visualization Manager:
       Axes Radius: 0.00999999978
       Class: rviz/PoseArray
       Color: 255; 25; 0
-      Enabled: true
+      Enabled: false
       Head Length: 0.0700000003
       Head Radius: 0.0299999993
       Name: PoseArray
@@ -75,7 +75,7 @@ Visualization Manager:
       Shape: Arrow (Flat)
       Topic: /dynamic_obstacles
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Arrow Length: 0.300000012
       Axes Length: 0.300000012
@@ -97,7 +97,7 @@ Visualization Manager:
       Marker Topic: /local_planner/slp_doa/candidate_trajectories/no_collision
       Name: MarkerArray
       Namespaces:
-        {}
+        /local_planner/slp_doa/candidate_trajectories/no_collision: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -105,7 +105,7 @@ Visualization Manager:
       Marker Topic: /local_planner/slp_doa/selected_trajectory
       Name: Marker
       Namespaces:
-        {}
+        /local_planner/slp_doa/selected_trajectory: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -121,7 +121,9 @@ Visualization Manager:
       Marker Topic: /marker/obs
       Name: MarkerArray
       Namespaces:
-        {}
+        obs0: true
+        obs1: true
+        obs2: true
       Queue Size: 100
       Value: true
   Enabled: true

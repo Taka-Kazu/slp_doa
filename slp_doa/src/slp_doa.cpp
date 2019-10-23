@@ -21,6 +21,7 @@ SLPDOA::SLPDOA(void)
     std::cout << "WORLD_FRAME: " << WORLD_FRAME << std::endl;
 
     obstacles_predicted_path_pub = local_nh.advertise<geometry_msgs::PoseArray>("/obstacle_predicted_paths", 1);
+    probability_map_pub = local_nh.advertise<nav_msgs::OccupancyGrid>("/probability_map", 1);
     obstacle_pose_sub = nh.subscribe("/dynamic_obstacles", 1, &SLPDOA::obstacle_pose_callback, this);
     std::cout << std::endl;
 }
@@ -78,6 +79,16 @@ double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& posi
     return probability;
 }
 
+SLPDOA::ProbabilityWithTimeStep::ProbabilityWithTimeStep(void)
+:time_step(0), probability(0.0)
+{
+}
+
+SLPDOA::ProbabilityWithTimeStep::ProbabilityWithTimeStep(unsigned int t_, double p_)
+:time_step(t_), probability(p_)
+{
+}
+
 void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
 {
     std::cout << "obstacle pose callback" << std::endl;
@@ -109,11 +120,11 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
     for(auto it=tracker.obstacles.begin();it!=tracker.obstacles.end();++it){
         ObstacleStates obstacle_states(PREDICTION_STEP, local_map.info.resolution);
         Obstacle obs = it->second;
-        for(int i=0;i<PREDICTION_STEP;i++){
-            obs.predict(DT);
+        for(unsigned int i=0;i<PREDICTION_STEP;i++){
             obstacle_states.pos.push_back(obs.x.segment(0, 2));
             obstacle_states.vel.push_back(obs.x.segment(2, 2));
             obstacle_states.vcov.push_back(obs.p.block(0, 0, 2, 2));
+            obs.predict(DT);
         }
         obstacle_states_list.push_back(obstacle_states);
     }
@@ -126,7 +137,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
         std::cout << "obstacle " << i << ": "<< std::endl;
         std::cout << obstacle_states_list[i].pos[0] << std::endl;
         std::cout << obstacle_states_list[i].vel[0] << std::endl;
-        for(int j=0;j<PREDICTION_STEP;j++){
+        for(unsigned int j=0;j<PREDICTION_STEP;j++){
             geometry_msgs::Pose p;
             p.position.x = obstacle_states_list[i].pos[j](0);
             p.position.y = obstacle_states_list[i].pos[j](1);
@@ -141,10 +152,11 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
     obstacles_predicted_path_pub.publish(obstacle_paths);
 }
 
-bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const std::vector<Eigen::Vector3d>& trajectory)
+SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs::OccupancyGrid& local_costmap, const std::vector<Eigen::Vector3d>& trajectory)
 {
     /*
-     * if given trajectory is considered to collide with an obstacle, return true
+     * if given trajectory is considered to collide with an obstacle, return collision time step
+     * if not collision, this function returns boost::none
      */
     Eigen::Affine3d affine;
     try{
@@ -156,15 +168,17 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
         affine = trans * q;
     }catch(tf::TransformException ex){
         std::cout << ex.what() << std::endl;
-        return true;
+        return ProbabilityWithTimeStep(0, 1.0);
     }
     double resolution = local_costmap.info.resolution;
-    int size = trajectory.size();
-    for(int i=0;i<size;i++){
+    unsigned int size = trajectory.size();
+    double max_collision_probability = 0;
+    unsigned int max_collision_probability_time = 0;
+    for(unsigned int i=0;i<size;i++){
         int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
         int yi = round((trajectory[i](1) - local_costmap.info.origin.position.y) / resolution);
         if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
-            return true;
+            return ProbabilityWithTimeStep(i, 1.0);
         }else{
             if(i < PREDICTION_STEP){
                 double no_collision_probability = 1;
@@ -174,63 +188,48 @@ bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const
                     no_collision_probability *= (1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i));
                 }
                 double collision_probability = 1 - no_collision_probability;
-                if(collision_probability > COLLISION_PROBABILITY_THRESHOLD){
-                    std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
-                    std::cout << (affine * trajectory[0]).segment(0, 2).transpose() << " -> " << (affine * trajectory[i]).segment(0, 2).transpose() << std::endl;
-                    return true;
+                if(collision_probability > max_collision_probability){
+                    max_collision_probability = collision_probability;
+                    max_collision_probability_time = i;
                 }
             }
         }
     }
-    return false;
+    return ProbabilityWithTimeStep(max_collision_probability_time, max_collision_probability);
 }
 
-bool SLPDOA::check_collision(const nav_msgs::OccupancyGrid& local_costmap, const std::vector<Eigen::Vector3d>& trajectory, double range)
+void SLPDOA::generate_probability_map(unsigned int time_step)
 {
-    /*
-     * if given trajectory is considered to collide with an obstacle, return true
-     */
     Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
-        // listener.waitForTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time::now(), ros::Duration(1.0));
         listener.lookupTransform(WORLD_FRAME, ROBOT_FRAME, ros::Time(0), stamped_transform);
         Eigen::Translation<double, 3> trans(stamped_transform.getOrigin().x(), stamped_transform.getOrigin().y(), stamped_transform.getOrigin().z());
         Eigen::Quaterniond q(stamped_transform.getRotation().w(), stamped_transform.getRotation().x(), stamped_transform.getRotation().y(), stamped_transform.getRotation().z());
         affine = trans * q;
     }catch(tf::TransformException ex){
         std::cout << ex.what() << std::endl;
-        return true;
     }
-    double resolution = local_costmap.info.resolution;
-    int size = trajectory.size();
-    // for(int i=0;i<size;i++){
-    for(int i=0;i<size;i++){
-        int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
-        int yi = round((trajectory[i](1) - local_costmap.info.origin.position.y) / resolution);
-        //std::cout << xi << ", " << yi << std::endl;
-        if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
-            if(trajectory[i].norm() > range){
-                return false;
-            }else{
-                return true;
+    std::vector<double> probabilities(local_map.data.size());
+    double max_prob = 0;
+    for(unsigned int j=0;j<local_map.info.height;j++){
+        for(unsigned int i=0;i<local_map.info.width;i++){
+            Eigen::Vector3d p_(i * local_map.info.resolution + local_map.info.origin.position.x, j * local_map.info.resolution + local_map.info.origin.position.y, 0);
+            Eigen::Vector2d p = (affine * p_).segment(0, 2);
+            double probability = 0;
+            for(const auto& obs : obstacle_states_list){
+                Eigen::Vector2d mu = obs.pos[time_step];
+                Eigen::Matrix2d sigma = obs.vcov[time_step];
+                double coeff = 1. / (2 * M_PI * sqrt(sigma.determinant()));
+                probability += coeff * std::exp(-0.5 * (p - mu).transpose() * sigma.inverse() * (p - mu));
             }
-        }else{
-            if(i < PREDICTION_STEP){
-                double no_collision_probability = 1;
-                for(const auto& obs : obstacle_states_list){
-                    no_collision_probability *= 1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i);
-                }
-                double collision_probability = 1 - no_collision_probability;
-                if(collision_probability > COLLISION_PROBABILITY_THRESHOLD){
-                    // std::cout << "\033[33m" << "step: " << i << ", " << "prob: " << collision_probability << "\033[0m" << std::endl;
-                    // std::cout << (affine * trajectory[i]).segment(0, 2) << std::endl;
-                    return true;
-                }
-            }
+            max_prob = std::max(max_prob, probability);
+            probabilities[i + local_map.info.height * j] = probability;
         }
     }
-    return false;
+    for(unsigned int i=0;i<local_map.data.size();i++){
+        local_map.data[i] = std::ceil(100.0 * probabilities[i] / max_prob);
+    }
 }
 
 void SLPDOA::process(void)
@@ -262,27 +261,34 @@ void SLPDOA::process(void)
             bool generated = generate_trajectories(states, current_velocity.linear.x, current_velocity.angular.z, target_velocity, trajectories);
             if(generated){
                 visualize_trajectories(trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub);
-
                 std::cout << "check candidate trajectories" << std::endl;
                 std::vector<MotionModelDiffDrive::Trajectory> candidate_trajectories;
                 std::cout << "trajectories: " << trajectories.size() << std::endl;
+                unsigned int min_collision_step = PREDICTION_STEP - 1;
+                ProbabilityWithTimeStep max_collision_probability;
                 for(const auto& trajectory : trajectories){
-                    if(!check_collision(local_map, trajectory.trajectory)){
+                    auto collision_probability = get_collision_probability(local_map, trajectory.trajectory);
+                    std::cout << "t, p: " << collision_probability.time_step << ", " << collision_probability.probability << std::endl;;
+                    if(collision_probability.probability < COLLISION_PROBABILITY_THRESHOLD){
+                        // no collision
                         candidate_trajectories.push_back(trajectory);
+                    }else{
+                        min_collision_step = std::min(min_collision_step, collision_probability.time_step);
+                    }
+                    if(max_collision_probability.probability < collision_probability.probability){
+                        max_collision_probability = collision_probability;
                     }
                 }
+                std::cout << "min_collision_step: " << min_collision_step << std::endl;
+                std::cout << "max_collision_probability: " << max_collision_probability.probability << std::endl;
+                if(max_collision_probability.probability > COLLISION_PROBABILITY_THRESHOLD){
+                    generate_probability_map(min_collision_step);
+                }else{
+                    generate_probability_map(max_collision_probability.time_step);
+                }
+                probability_map_pub.publish(local_map);
                 std::cout << "candidate_trajectories: " << candidate_trajectories.size() << std::endl;
-                if(candidate_trajectories.empty()){
-                    // if no candidate trajectories
-                    // collision checking with relaxed restrictions
-                    for(const auto& trajectory : trajectories){
-                        if(!check_collision(local_map, trajectory.trajectory, IGNORABLE_OBSTACLE_RANGE)){
-                            candidate_trajectories.push_back(trajectory);
-                        }
-                    }
-                    std::cout << "candidate_trajectories(ignore far obstacles): " << candidate_trajectories.size() << std::endl;
-                }
-                // std::cout << "candidate time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
+                std::cout << "candidate time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
                 if(candidate_trajectories.size() > 0){
                     visualize_trajectories(candidate_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
 
