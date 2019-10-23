@@ -286,7 +286,6 @@ void SLPDOA::process(void)
                 }else{
                     generate_probability_map(max_collision_probability.time_step);
                 }
-                probability_map_pub.publish(local_map);
                 std::cout << "candidate_trajectories: " << candidate_trajectories.size() << std::endl;
                 std::cout << "candidate time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
                 if(candidate_trajectories.size() > 0){
@@ -336,6 +335,7 @@ void SLPDOA::process(void)
                 visualize_trajectories(clear_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
                 visualize_trajectory(MotionModelDiffDrive::Trajectory(), 1, 0, 0, selected_trajectory_pub);
             }
+            probability_map_pub.publish(local_map);
             std::cout << "final time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
         }else{
             if(!local_goal_subscribed){
