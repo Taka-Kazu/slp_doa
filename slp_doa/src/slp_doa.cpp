@@ -152,7 +152,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
     obstacles_predicted_path_pub.publish(obstacle_paths);
 }
 
-SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs::OccupancyGrid& local_costmap, const std::vector<Eigen::Vector3d>& trajectory)
+SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs::OccupancyGrid& local_costmap, const std::vector<Eigen::Vector3d>& trajectory, std::vector<double>& probabilities)
 {
     /*
      * if given trajectory is considered to collide with an obstacle, return collision time step
@@ -174,11 +174,16 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
     unsigned int size = trajectory.size();
     double max_collision_probability = 0;
     unsigned int max_collision_probability_time = 0;
+    probabilities.resize(trajectory.size());
     for(unsigned int i=0;i<size;i++){
+        probabilities[i] = 0.0;
         int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
         int yi = round((trajectory[i](1) - local_costmap.info.origin.position.y) / resolution);
         if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
-            return ProbabilityWithTimeStep(i, 1.0);
+            // return ProbabilityWithTimeStep(i, 1.0);
+            probabilities[i] = 1.0;
+            max_collision_probability = 1.0;
+            max_collision_probability_time = i;
         }else{
             if(i < PREDICTION_STEP){
                 double no_collision_probability = 1;
@@ -192,6 +197,7 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
                     max_collision_probability = collision_probability;
                     max_collision_probability_time = i;
                 }
+                probabilities[i] = collision_probability;
             }
         }
     }
@@ -232,6 +238,57 @@ void SLPDOA::generate_probability_map(unsigned int time_step)
     }
 }
 
+void SLPDOA::visualize_trajectories_with_probability(const std::vector<MotionModelDiffDrive::Trajectory>& trajectories, const double r, const double g, const double b, const int trajectories_size, const ros::Publisher& pub, const std::vector<std::vector<double> >& probabilities)
+{
+    visualization_msgs::MarkerArray v_trajectories;
+    int count = 0;
+    const int size = trajectories.size();
+    for(;count<size;count++){
+        visualization_msgs::Marker v_trajectory;
+        v_trajectory.header.frame_id = ROBOT_FRAME;
+        v_trajectory.header.stamp = ros::Time::now();
+        // v_trajectory.color.r = r;
+        // v_trajectory.color.g = g;
+        // v_trajectory.color.b = b;
+        v_trajectory.color.a = 0.8;
+        v_trajectory.ns = pub.getTopic();
+        v_trajectory.type = visualization_msgs::Marker::LINE_STRIP;
+        v_trajectory.action = visualization_msgs::Marker::ADD;
+        v_trajectory.lifetime = ros::Duration();
+        v_trajectory.id = count;
+        v_trajectory.scale.x = 0.05;
+        geometry_msgs::Point p;
+        std_msgs::ColorRGBA color;
+        // for(const auto& pose : trajectories[count].trajectory){
+        //     p.x = pose(0);
+        //     p.y = pose(1);
+        for(unsigned int i=0;i<trajectories[count].trajectory.size();i++){
+            p.x = trajectories[count].trajectory[i](0);
+            p.y = trajectories[count].trajectory[i](1);
+            v_trajectory.points.push_back(p);
+            color.r = r * (1 - probabilities[count][i]);
+            color.g = g * (1 - probabilities[count][i]);
+            color.b = b * (1 - probabilities[count][i]);
+            color.a = 0.8;
+            v_trajectory.colors.push_back(color);
+        }
+        v_trajectories.markers.push_back(v_trajectory);
+    }
+    for(;count<trajectories_size;){
+        visualization_msgs::Marker v_trajectory;
+        v_trajectory.header.frame_id = ROBOT_FRAME;
+        v_trajectory.header.stamp = ros::Time::now();
+        v_trajectory.ns = pub.getTopic();
+        v_trajectory.type = visualization_msgs::Marker::LINE_STRIP;
+        v_trajectory.action = visualization_msgs::Marker::DELETE;
+        v_trajectory.lifetime = ros::Duration();
+        v_trajectory.id = count;
+        v_trajectories.markers.push_back(v_trajectory);
+        count++;
+    }
+    pub.publish(v_trajectories);
+}
+
 void SLPDOA::process(void)
 {
     ros::Rate loop_rate(HZ);
@@ -260,14 +317,16 @@ void SLPDOA::process(void)
             std::vector<MotionModelDiffDrive::Trajectory> trajectories;
             bool generated = generate_trajectories(states, current_velocity.linear.x, current_velocity.angular.z, target_velocity, trajectories);
             if(generated){
-                visualize_trajectories(trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub);
                 std::cout << "check candidate trajectories" << std::endl;
                 std::vector<MotionModelDiffDrive::Trajectory> candidate_trajectories;
                 std::cout << "trajectories: " << trajectories.size() << std::endl;
                 unsigned int min_collision_step = PREDICTION_STEP - 1;
                 ProbabilityWithTimeStep max_collision_probability;
+                std::vector<std::vector<double> > probabilities;
                 for(const auto& trajectory : trajectories){
-                    auto collision_probability = get_collision_probability(local_map, trajectory.trajectory);
+                    std::vector<double> prob;
+                    auto collision_probability = get_collision_probability(local_map, trajectory.trajectory, prob);
+                    probabilities.push_back(prob);
                     std::cout << "t, p: " << collision_probability.time_step << ", " << collision_probability.probability << std::endl;;
                     if(collision_probability.probability < COLLISION_PROBABILITY_THRESHOLD){
                         // no collision
@@ -279,6 +338,13 @@ void SLPDOA::process(void)
                         max_collision_probability = collision_probability;
                     }
                 }
+                visualize_trajectories_with_probability(trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub, probabilities);
+                // for(const auto& probs : probabilities){
+                //     std::cout << "---" << std::endl;
+                //     for(const auto& p: probs){
+                //         std::cout << "p: " << p << std::endl;
+                //     }
+                // }
                 std::cout << "min_collision_step: " << min_collision_step << std::endl;
                 std::cout << "max_collision_probability: " << max_collision_probability.probability << std::endl;
                 if(max_collision_probability.probability > COLLISION_PROBABILITY_THRESHOLD){
