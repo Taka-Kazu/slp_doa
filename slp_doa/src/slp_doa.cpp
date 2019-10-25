@@ -238,7 +238,7 @@ void SLPDOA::generate_probability_map(unsigned int time_step)
     }
 }
 
-void SLPDOA::visualize_trajectories_with_probability(const std::vector<MotionModelDiffDrive::Trajectory>& trajectories, const double r, const double g, const double b, const int trajectories_size, const ros::Publisher& pub, const std::vector<std::vector<double> >& probabilities)
+void SLPDOA::visualize_trajectories_with_probability(const std::vector<MotionModelDiffDrive::Trajectory>& trajectories, const double r, const double g, const double b, const int trajectories_size, const ros::Publisher& pub, const std::vector<std::vector<double> >& probabilities, const std::vector<unsigned int>& candidate_indices)
 {
     visualization_msgs::MarkerArray v_trajectories;
     int count = 0;
@@ -256,7 +256,7 @@ void SLPDOA::visualize_trajectories_with_probability(const std::vector<MotionMod
         v_trajectory.action = visualization_msgs::Marker::ADD;
         v_trajectory.lifetime = ros::Duration();
         v_trajectory.id = count;
-        v_trajectory.scale.x = 0.05;
+        v_trajectory.scale.x = 0.02;
         geometry_msgs::Point p;
         std_msgs::ColorRGBA color;
         // for(const auto& pose : trajectories[count].trajectory){
@@ -266,9 +266,15 @@ void SLPDOA::visualize_trajectories_with_probability(const std::vector<MotionMod
             p.x = trajectories[count].trajectory[i](0);
             p.y = trajectories[count].trajectory[i](1);
             v_trajectory.points.push_back(p);
-            color.r = r * (1 - probabilities[count][i]);
-            color.g = g * (1 - probabilities[count][i]);
-            color.b = b * (1 - probabilities[count][i]);
+            if(std::find(candidate_indices.begin(), candidate_indices.end(), count) != candidate_indices.end()){
+                color.r = r * (1 - probabilities[count][i]);
+                color.g = g * (1 - probabilities[count][i]);
+                color.b = b * (1 - probabilities[count][i]);
+            }else{
+                color.r = 0;
+                color.g = 1 * (1 - probabilities[count][i]);
+                color.b = 0;
+            }
             color.a = 0.8;
             v_trajectory.colors.push_back(color);
         }
@@ -323,6 +329,8 @@ void SLPDOA::process(void)
                 unsigned int min_collision_step = PREDICTION_STEP - 1;
                 ProbabilityWithTimeStep max_collision_probability;
                 std::vector<std::vector<double> > probabilities;
+                std::vector<unsigned int> candidate_indices;
+                unsigned int count = 0;
                 for(const auto& trajectory : trajectories){
                     std::vector<double> prob;
                     auto collision_probability = get_collision_probability(local_map, trajectory.trajectory, prob);
@@ -331,14 +339,16 @@ void SLPDOA::process(void)
                     if(collision_probability.probability < COLLISION_PROBABILITY_THRESHOLD){
                         // no collision
                         candidate_trajectories.push_back(trajectory);
+                        candidate_indices.push_back(count);
                     }else{
                         min_collision_step = std::min(min_collision_step, collision_probability.time_step);
                     }
                     if(max_collision_probability.probability < collision_probability.probability){
                         max_collision_probability = collision_probability;
                     }
+                    count++;
                 }
-                visualize_trajectories_with_probability(trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub, probabilities);
+                visualize_trajectories_with_probability(trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_pub, probabilities, candidate_indices);
                 // for(const auto& probs : probabilities){
                 //     std::cout << "---" << std::endl;
                 //     for(const auto& p: probs){

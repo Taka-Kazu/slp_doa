@@ -56,7 +56,7 @@ Visualization Manager:
       Draw Behind: false
       Enabled: true
       Name: Map
-      Topic: /probability_map
+      Topic: /local_costmap
       Unreliable: false
       Use Timestamp: false
       Value: true
@@ -94,9 +94,10 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /local_planner/slp_doa/candidate_trajectories/no_collision
+      Marker Topic: /local_planner/slp_doa/candidate_trajectories
       Name: MarkerArray
       Namespaces:
+        /local_planner/slp_doa/candidate_trajectories: true
         /local_planner/slp_doa/candidate_trajectories/no_collision: true
       Queue Size: 100
       Value: true

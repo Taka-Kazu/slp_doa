@@ -40,7 +40,7 @@ public:
     void obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr&);
     ProbabilityWithTimeStep get_collision_probability(const nav_msgs::OccupancyGrid&, const std::vector<Eigen::Vector3d>&, std::vector<double>&);
     void generate_probability_map(unsigned int);
-    void visualize_trajectories_with_probability(const std::vector<MotionModelDiffDrive::Trajectory>&, const double, const double, const double, const int, const ros::Publisher&, const std::vector<std::vector<double> >&);
+    void visualize_trajectories_with_probability(const std::vector<MotionModelDiffDrive::Trajectory>&, const double, const double, const double, const int, const ros::Publisher&, const std::vector<std::vector<double> >&, const std::vector<unsigned int>&);
     void process(void);
 
 private:
