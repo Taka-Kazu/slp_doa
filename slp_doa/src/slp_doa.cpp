@@ -256,7 +256,7 @@ void SLPDOA::visualize_trajectories_with_probability(const std::vector<MotionMod
         v_trajectory.action = visualization_msgs::Marker::ADD;
         v_trajectory.lifetime = ros::Duration();
         v_trajectory.id = count;
-        v_trajectory.scale.x = 0.02;
+        v_trajectory.scale.x = 0.05;
         geometry_msgs::Point p;
         std_msgs::ColorRGBA color;
         // for(const auto& pose : trajectories[count].trajectory){
