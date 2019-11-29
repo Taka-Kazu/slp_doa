@@ -98,7 +98,6 @@ Visualization Manager:
       Name: MarkerArray
       Namespaces:
         /local_planner/slp_doa/candidate_trajectories: true
-        /local_planner/slp_doa/candidate_trajectories/no_collision: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -125,6 +124,14 @@ Visualization Manager:
         obs0: true
         obs1: true
         obs2: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /robot_passed_trajectory
+      Name: Marker
+      Namespaces:
+        robot_trajectory: true
       Queue Size: 100
       Value: true
   Enabled: true
