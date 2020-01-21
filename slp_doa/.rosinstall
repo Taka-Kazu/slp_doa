@@ -1,0 +1,9 @@
+- git:
+    local-name: dynamic_obstacle_avoidance_planner
+    uri: https://github.com/amslabtech/dynamic_obstacle_avoidance_planner.git
+    version: master
+
+- git:
+    local-name: state_lattice_planner
+    uri: https://github.com/amslabtech/state_lattice_planner.git
+    version: master

@@ -14,7 +14,10 @@ jobs:
                     mkdir -p ~/catkin_ws/src
                     ln -s ~/project/slp_doa ~/catkin_ws/src/slp_doa
                     cd ~/catkin_ws
-                    rosdep install --from-paths . --ignore-src -y
+                    touch src/.rosinstall
+                    rosws merge ~/catkin_ws/src/slp_doa/.rosinstall -t src
+                    rosws update -t src
+                    rosdep install --from-paths src --ignore-src -y
             - run:
                 name: Build
                 command: |
