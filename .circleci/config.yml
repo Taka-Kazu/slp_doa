@@ -1,0 +1,29 @@
+version: 2
+jobs:
+    melodic:
+        docker:
+            - image: ros:melodic
+        steps:
+            - checkout
+            - run:
+                name: Set Up Container
+                command: |
+                    apt-get update -qq
+                    apt-get install -y python-catkin-tools
+                    source /opt/ros/melodic/setup.bash
+                    mkdir -p ~/catkin_ws/src
+                    ln -s ~/project/slp_doa ~/catkin_ws/src/slp_doa
+                    cd ~/catkin_ws
+                    rosdep install --from-paths . --ignore-src -y
+            - run:
+                name: Build
+                command: |
+                    source /opt/ros/melodic/setup.bash
+                    cd ~/catkin_ws
+                    catkin build
+
+workflows:
+    version: 2
+    ros_build:
+        jobs:
+            - melodic
