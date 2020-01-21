@@ -1,5 +1,7 @@
 # state lattice planner with dynamic obstacle avoidance
 
+[![CircleCI](https://circleci.com/gh/Taka-Kazu/slp_doa.svg?style=svg)](https://circleci.com/gh/Taka-Kazu/slp_doa)
+
 ## Overview
 TBW
 
