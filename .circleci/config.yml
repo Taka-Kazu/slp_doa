@@ -14,10 +14,16 @@ jobs:
                     mkdir -p ~/catkin_ws/src
                     ln -s ~/project/slp_doa ~/catkin_ws/src/slp_doa
                     cd ~/catkin_ws
-                    touch src/.rosinstall
-                    rosws merge ~/catkin_ws/src/slp_doa/.rosinstall -t src
-                    rosws update -t src
-                    rosdep install --from-paths src --ignore-src -y
+                    # touch src/.rosinstall
+                    # rosws merge ~/catkin_ws/src/slp_doa/.rosinstall -t src
+                    # rosws update -t src
+                    # rosdep install --from-paths src --ignore-src -y
+                    apt-get install -y --no-install-recommends \
+                        ros-melodic-tf \
+                        ros-melodic-pcl-ros*
+                    cd ~/catkin_ws/src
+                    git clone https://github.com/amslabtech/state_lattice_planner --depth=1
+                    git clone https://github.com/amslabtech/dynamic_obstacle_avoidance_planner --depth=1
             - run:
                 name: Build
                 command: |
