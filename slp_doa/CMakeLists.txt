@@ -10,7 +10,6 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf
   cmake_modules
-  trajectory_generator
   state_lattice_planner
   dynamic_obstacle_avoidance_planner
 )
