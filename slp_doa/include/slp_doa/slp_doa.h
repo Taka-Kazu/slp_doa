@@ -6,6 +6,8 @@
 #include "state_lattice_planner/state_lattice_planner.h"
 #include "dynamic_obstacle_avoidance_planner/obstacle_tracker_kf.h"
 
+#include <omp.h>
+
 class SLPDOA: public StateLatticePlanner
 {
 public:

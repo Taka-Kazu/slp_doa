@@ -158,7 +158,7 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
      * if given trajectory is considered to collide with an obstacle, return collision time step
      * if not collision, this function returns boost::none
      */
-    std::cout << "get collision probability" << std::endl;
+    // std::cout << "get collision probability" << std::endl;
     Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
@@ -333,46 +333,42 @@ void SLPDOA::process(void)
             generate_biased_polar_states(N_S, goal, sampling_params, target_velocity, states);
             std::vector<MotionModelDiffDrive::Trajectory> trajectories;
             bool generated = generate_trajectories(states, current_velocity.linear.x, current_velocity.angular.z, target_velocity, trajectories);
+            std::cout << "trajectories generation time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
             if(generated){
                 std::cout << "check candidate trajectories" << std::endl;
-                std::vector<MotionModelDiffDrive::Trajectory> candidate_trajectories;
-                std::cout << "trajectories: " << trajectories.size() << std::endl;
-                unsigned int min_collision_step = PREDICTION_STEP - 1;
-                ProbabilityWithTimeStep max_collision_probability;
-                std::vector<std::vector<double> > probabilities;
-                std::vector<unsigned int> candidate_indices;
-                unsigned int count = 0;
-                for(const auto& trajectory : trajectories){
+                const unsigned int generated_trajectories_size = trajectories.size();
+                std::cout << "trajectories: " << generated_trajectories_size << std::endl;
+                std::vector<MotionModelDiffDrive::Trajectory> candidate_trajectories(generated_trajectories_size);
+                std::vector<std::vector<double> > probabilities(generated_trajectories_size);
+                std::vector<unsigned int> candidate_indices(generated_trajectories_size);
+                unsigned int no_collision_count = 0;
+
+                #pragma omp parallel for
+                for(unsigned int i=0;i<generated_trajectories_size;i++){
+                    auto trajectory = trajectories[i];
                     std::vector<double> prob;
                     auto collision_probability = get_collision_probability(local_map, trajectory.trajectory, prob);
-                    probabilities.push_back(prob);
-                    std::cout << "t, p: " << collision_probability.time_step << ", " << collision_probability.probability << std::endl;;
+                    probabilities[i] = prob;
+                    // std::cout << "t, p: " << collision_probability.time_step << ", " << collision_probability.probability << std::endl;;
+                    // std::cout << "collision probability time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
                     if(collision_probability.probability < COLLISION_PROBABILITY_THRESHOLD){
                         // no collision
-                        candidate_trajectories.push_back(trajectory);
-                        candidate_indices.push_back(count);
+                        candidate_trajectories[i] = trajectory;
+                    }
+                }
+
+                for(auto it=candidate_trajectories.begin();it!=candidate_trajectories.end();){
+                    if(it->trajectory.size() == 0){
+                        it = candidate_trajectories.erase(it);
                     }else{
-                        min_collision_step = std::min(min_collision_step, collision_probability.time_step);
+                        ++it;
+                        candidate_indices.push_back(no_collision_count);
                     }
-                    if(max_collision_probability.probability < collision_probability.probability){
-                        max_collision_probability = collision_probability;
-                    }
-                    count++;
+                    no_collision_count++;
                 }
+
                 visualize_trajectories_with_probability(trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_pub, probabilities, candidate_indices);
-                // for(const auto& probs : probabilities){
-                //     std::cout << "---" << std::endl;
-                //     for(const auto& p: probs){
-                //         std::cout << "p: " << p << std::endl;
-                //     }
-                // }
-                std::cout << "min_collision_step: " << min_collision_step << std::endl;
-                std::cout << "max_collision_probability: " << max_collision_probability.probability << std::endl;
-                if(max_collision_probability.probability > COLLISION_PROBABILITY_THRESHOLD){
-                    generate_probability_map(min_collision_step);
-                }else{
-                    generate_probability_map(max_collision_probability.time_step);
-                }
+
                 std::cout << "candidate_trajectories: " << candidate_trajectories.size() << std::endl;
                 std::cout << "candidate time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
                 if(candidate_trajectories.size() > 0){
