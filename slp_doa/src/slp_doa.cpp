@@ -158,6 +158,7 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
      * if given trajectory is considered to collide with an obstacle, return collision time step
      * if not collision, this function returns boost::none
      */
+    std::cout << "get collision probability" << std::endl;
     Eigen::Affine3d affine;
     try{
         tf::StampedTransform stamped_transform;
@@ -171,14 +172,21 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
         return ProbabilityWithTimeStep(0, 1.0);
     }
     double resolution = local_costmap.info.resolution;
-    unsigned int size = trajectory.size();
+    const unsigned int map_size = local_costmap.data.size();
+    const unsigned int size = trajectory.size();
     double max_collision_probability = 0;
     unsigned int max_collision_probability_time = 0;
     probabilities.resize(trajectory.size());
     for(unsigned int i=0;i<size;i++){
+        // std::cout << "i: " << i << std::endl;
         probabilities[i] = 0.0;
         int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
         int yi = round((trajectory[i](1) - local_costmap.info.origin.position.y) / resolution);
+        unsigned int index = xi + local_costmap.info.width * yi;
+        if(index < 0 || map_size <= index){
+            // std::cout << "invalid index" << std::endl;
+            continue;
+        }
         if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
             // return ProbabilityWithTimeStep(i, 1.0);
             probabilities[i] = 1.0;
@@ -193,11 +201,14 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
                     no_collision_probability *= (1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i));
                 }
                 double collision_probability = 1 - no_collision_probability;
+                // std::cout << "i: " << i << ", " << "collision probability: " << collision_probability << std::endl;
                 if(collision_probability > max_collision_probability){
                     max_collision_probability = collision_probability;
                     max_collision_probability_time = i;
                 }
                 probabilities[i] = collision_probability;
+            }else{
+                // std::cout << "i: " << i << ", out of prediction time" << std::endl;
             }
         }
     }
