@@ -340,8 +340,6 @@ void SLPDOA::process(void)
                 std::cout << "trajectories: " << generated_trajectories_size << std::endl;
                 std::vector<MotionModelDiffDrive::Trajectory> candidate_trajectories(generated_trajectories_size);
                 std::vector<std::vector<double> > probabilities(generated_trajectories_size);
-                std::vector<unsigned int> candidate_indices(generated_trajectories_size);
-                unsigned int no_collision_count = 0;
 
                 #pragma omp parallel for
                 for(unsigned int i=0;i<generated_trajectories_size;i++){
@@ -357,12 +355,15 @@ void SLPDOA::process(void)
                     }
                 }
 
+                std::vector<unsigned int> candidate_indices;
+                unsigned int no_collision_count = 0;
                 for(auto it=candidate_trajectories.begin();it!=candidate_trajectories.end();){
                     if(it->trajectory.size() == 0){
                         it = candidate_trajectories.erase(it);
                     }else{
                         ++it;
-                        candidate_indices.push_back(no_collision_count);
+                        std::cout << no_collision_count << std::endl;
+                        candidate_indices.emplace_back(no_collision_count);
                     }
                     no_collision_count++;
                 }
@@ -400,8 +401,8 @@ void SLPDOA::process(void)
                     velocity_pub.publish(cmd_vel);
                     // for clear
                     std::vector<MotionModelDiffDrive::Trajectory> clear_trajectories;
-                    visualize_trajectories(clear_trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub);
-                    visualize_trajectories(clear_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
+                    // visualize_trajectories(clear_trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub);
+                    // visualize_trajectories(clear_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
                     visualize_trajectory(MotionModelDiffDrive::Trajectory(), 1, 0, 0, selected_trajectory_pub);
                 }
             }else{
