@@ -362,7 +362,6 @@ void SLPDOA::process(void)
                         it = candidate_trajectories.erase(it);
                     }else{
                         ++it;
-                        std::cout << no_collision_count << std::endl;
                         candidate_indices.emplace_back(no_collision_count);
                     }
                     no_collision_count++;
