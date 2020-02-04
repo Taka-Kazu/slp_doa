@@ -267,6 +267,7 @@ void SLPDOA::visualize_trajectories_with_probability(const std::vector<MotionMod
         v_trajectory.action = visualization_msgs::Marker::ADD;
         v_trajectory.lifetime = ros::Duration();
         v_trajectory.id = count;
+        v_trajectory.pose.orientation.w = 1.0;
         v_trajectory.scale.x = 0.05;
         geometry_msgs::Point p;
         std_msgs::ColorRGBA color;
@@ -325,6 +326,7 @@ void SLPDOA::process(void)
         if(local_goal_subscribed && local_map_updated && odom_updated && goal_transformed){
             std::cout << "=== slp_doa ===" << std::endl;
             double start = ros::Time::now().toSec();
+            static int last_trajectory_num = 0;
             std::cout << "local goal: \n" << local_goal_base_link << std::endl;
             std::cout << "current_velocity: \n" << current_velocity << std::endl;
             Eigen::Vector3d goal(local_goal_base_link.pose.position.x, local_goal_base_link.pose.position.y, tf::getYaw(local_goal_base_link.pose.orientation));
@@ -367,12 +369,12 @@ void SLPDOA::process(void)
                     no_collision_count++;
                 }
 
-                visualize_trajectories_with_probability(trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_pub, probabilities, candidate_indices);
+                visualize_trajectories_with_probability(trajectories, 0, 0.5, 1, last_trajectory_num, candidate_trajectories_pub, probabilities, candidate_indices);
 
                 std::cout << "candidate_trajectories: " << candidate_trajectories.size() << std::endl;
                 std::cout << "candidate time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
                 if(candidate_trajectories.size() > 0){
-                    visualize_trajectories(candidate_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
+                    visualize_trajectories(candidate_trajectories, 0, 0.5, 1, last_trajectory_num, candidate_trajectories_no_collision_pub);
 
                     std::cout << "pickup a optimal trajectory from candidate trajectories" << std::endl;
                     MotionModelDiffDrive::Trajectory trajectory;
@@ -414,11 +416,12 @@ void SLPDOA::process(void)
                 velocity_pub.publish(cmd_vel);
                 // for clear
                 std::vector<MotionModelDiffDrive::Trajectory> clear_trajectories;
-                visualize_trajectories(clear_trajectories, 0, 1, 0, N_P * N_H, candidate_trajectories_pub);
-                visualize_trajectories(clear_trajectories, 0, 0.5, 1, N_P * N_H, candidate_trajectories_no_collision_pub);
+                visualize_trajectories(clear_trajectories, 0, 1, 0, last_trajectory_num, candidate_trajectories_pub);
+                visualize_trajectories(clear_trajectories, 0, 0.5, 1, last_trajectory_num, candidate_trajectories_no_collision_pub);
                 visualize_trajectory(MotionModelDiffDrive::Trajectory(), 1, 0, 0, selected_trajectory_pub);
             }
             probability_map_pub.publish(local_map);
+            last_trajectory_num = trajectories.size();
             std::cout << "final time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
         }else{
             if(!local_goal_subscribed){

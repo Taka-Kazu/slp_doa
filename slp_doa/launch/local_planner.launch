@@ -17,6 +17,7 @@
     <arg name="prediction_step" default="3.5"/>
     <arg name="collision_probability_threshold" default="0.05"/>
     <arg name="world_frame" default="map"/>
+    <arg name="enable_control_space_sampling" default="false"/>
 
     <node pkg="slp_doa" type="slp_doa" name="slp_doa" ns="local_planner">
         <rosparam command="load" file="$(find state_lattice_planner)/config/robot_param.yaml" />
@@ -36,6 +37,7 @@
         <param name="PREDICTION_STEP" value="$(arg prediction_step)"/>
         <param name="COLLISION_PROBABILITY_THRESHOLD" value="$(arg collision_probability_threshold)"/>
         <param name="WORLD_FRAME" value="$(arg world_frame)"/>
+        <param name="ENABLE_CONTROL_SPACE_SAMPLING" value="$(arg enable_control_space_sampling)"/>
         <remap from="/local_map" to="/local_costmap"/>
         <remap from="/local_goal" to="/local_goal"/>
         <remap from="/cmd_vel" to="/velocity"/>
