@@ -187,6 +187,7 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
             // std::cout << "invalid index" << std::endl;
             continue;
         }
+        Eigen::Vector3d transformed_trajectory_position = affine * trajectory[i];
         if(local_costmap.data[xi + local_costmap.info.width * yi] != 0){
             // return ProbabilityWithTimeStep(i, 1.0);
             probabilities[i] = 1.0;
@@ -197,8 +198,16 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
                 double no_collision_probability = 1;
                 int count = 0;
                 for(const auto& obs : obstacle_states_list){
+                    Eigen::Vector2d vector_from_obs_to_traj = transformed_trajectory_position .segment(0, 2) - obs.pos[i];
+                    double distance_from_trajectory = vector_from_obs_to_traj.norm();
+                    if((distance_from_trajectory > 3)
+                       || (distance_from_trajectory > 5 && obs.vel[i].dot(vector_from_obs_to_traj) < 0.0)){
+                        // obs is far from traj or
+                        // is not coming to traj
+                        continue;
+                    }
+                    no_collision_probability *= (1 - obs.calculate_probability(transformed_trajectory_position.segment(0, 2), i));
                     count++;
-                    no_collision_probability *= (1 - obs.calculate_probability((affine * trajectory[i]).segment(0, 2), i));
                 }
                 double collision_probability = 1 - no_collision_probability;
                 // std::cout << "i: " << i << ", " << "collision probability: " << collision_probability << std::endl;
