@@ -11,18 +11,18 @@ import rospkg
 import rospy
 from std_msgs.msg import Float64MultiArray
 
-iteration = 5
+iteration = 20
 finish_flag = False
 
 class Result:
     def __init__(self):
         self.traveled_distance = 0
         self.traveled_time = 0
-        self.collsion_count = 0
+        self.collision_count = 0
         self.min_distance = 0
 
     def output(self):
-        return [self.traveled_distance, self.traveled_time, self.collsion_count, self.min_distance]
+        return [self.traveled_distance, self.traveled_time, self.collision_count, self.min_distance]
 
 results = list()
 
@@ -37,7 +37,7 @@ def result_callback(msg):
 
 def collision_callback(msg):
     global results
-    results[-1].collsion_count = int(msg.data[0])
+    results[-1].collision_count = int(msg.data[0])
     results[-1].min_distance = msg.data[1]
 
 def main():
