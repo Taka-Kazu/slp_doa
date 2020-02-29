@@ -53,7 +53,7 @@ double SLPDOA::ObstacleStates::calculate_probability(const Eigen::Vector2d& posi
     Eigen::Vector2d mu = pos[step];
     Eigen::Matrix2d sigma = vcov[step];
     double coeff = 1. / (2 * M_PI * sqrt(sigma.determinant()));
-    double avoidance_radius = 0.6;
+    double avoidance_radius = 0.8;
     double probability = 0;
     for(double y=position(1)-avoidance_radius;y<position(1)+avoidance_radius;y+=resolution){
         double x0 = position(0) - sqrt(square(avoidance_radius) - square(y - position(1)));
