@@ -72,7 +72,10 @@ void FakeLocalCostmapGenerator::process(void)
                         double x1 = obstacle.position.x + sqrt(COLLISION_RADIUS * COLLISION_RADIUS - (y - obstacle.position.y) * (y - obstacle.position.y));
                         for(double x=x0;x<=x1;x+=RESOLUTION){
                             if(-MAP_WIDTH_2 < x && x < MAP_WIDTH_2){
-                                local_costmap.data[get_index(local_costmap, x, y)] = 100;
+                                int index = get_index(local_costmap, x, y);
+                                if(0 <= index && index < map_size){
+                                    local_costmap.data[index] = 100;
+                                }
                             }
                         }
                     }
