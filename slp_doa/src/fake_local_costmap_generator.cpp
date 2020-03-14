@@ -40,52 +40,47 @@ void FakeLocalCostmapGenerator::obstacles_callback(const geometry_msgs::PoseArra
         std::cout << ex.what() << std::endl;
         return;
     }
-}
-
-void FakeLocalCostmapGenerator::process(void)
-{
-    ros::Rate loop_rate(HZ);
-
-    while(ros::ok()){
-        std::cout << "=== fake_local_costmap ===" << std::endl;
-        nav_msgs::OccupancyGrid local_costmap;
-        local_costmap.header.frame_id = ROBOT_FRAME;
-        local_costmap.header.stamp = ros::Time::now();
-        local_costmap.info.resolution = RESOLUTION;
-        local_costmap.info.width = MAP_WIDTH / RESOLUTION;
-        local_costmap.info.height = MAP_WIDTH / RESOLUTION;
-        local_costmap.info.origin.position.x = -MAP_WIDTH * 0.5;
-        local_costmap.info.origin.position.y = -MAP_WIDTH * 0.5;
-        local_costmap.info.origin.orientation = tf::createQuaternionMsgFromYaw(0);
-        int map_size = local_costmap.info.width * local_costmap.info.height;
-        local_costmap.data.resize(map_size);
-        for(auto& data : local_costmap.data){
-            data = 0;
-        }
-        if(ENABLE_STATIC_OBSTACLE){
-            std::cout << "obstacles: " << obstacles.poses.size() << std::endl;
-            for(const auto& obstacle : obstacles.poses){
-                for(double y=obstacle.position.y-COLLISION_RADIUS;y<obstacle.position.y+COLLISION_RADIUS;y+=RESOLUTION){
-                    const double MAP_WIDTH_2 = MAP_WIDTH * 0.5;
-                    if(-MAP_WIDTH_2 < y && y < MAP_WIDTH_2){
-                        double x0 = obstacle.position.x - sqrt(COLLISION_RADIUS * COLLISION_RADIUS - (y - obstacle.position.y) * (y - obstacle.position.y));
-                        double x1 = obstacle.position.x + sqrt(COLLISION_RADIUS * COLLISION_RADIUS - (y - obstacle.position.y) * (y - obstacle.position.y));
-                        for(double x=x0;x<=x1;x+=RESOLUTION){
-                            if(-MAP_WIDTH_2 < x && x < MAP_WIDTH_2){
-                                int index = get_index(local_costmap, x, y);
-                                if(0 <= index && index < map_size){
-                                    local_costmap.data[index] = 100;
-                                }
+    std::cout << "=== fake_local_costmap ===" << std::endl;
+    nav_msgs::OccupancyGrid local_costmap;
+    local_costmap.header.frame_id = ROBOT_FRAME;
+    local_costmap.header.stamp = msg->header.stamp;
+    local_costmap.info.resolution = RESOLUTION;
+    local_costmap.info.width = MAP_WIDTH / RESOLUTION;
+    local_costmap.info.height = MAP_WIDTH / RESOLUTION;
+    local_costmap.info.origin.position.x = -MAP_WIDTH * 0.5;
+    local_costmap.info.origin.position.y = -MAP_WIDTH * 0.5;
+    local_costmap.info.origin.orientation = tf::createQuaternionMsgFromYaw(0);
+    int map_size = local_costmap.info.width * local_costmap.info.height;
+    local_costmap.data.resize(map_size);
+    for(auto& data : local_costmap.data){
+        data = 0;
+    }
+    if(ENABLE_STATIC_OBSTACLE){
+        std::cout << "obstacles: " << obstacles.poses.size() << std::endl;
+        for(const auto& obstacle : obstacles.poses){
+            for(double y=obstacle.position.y-COLLISION_RADIUS;y<obstacle.position.y+COLLISION_RADIUS;y+=RESOLUTION){
+                const double MAP_WIDTH_2 = MAP_WIDTH * 0.5;
+                if(-MAP_WIDTH_2 < y && y < MAP_WIDTH_2){
+                    double x0 = obstacle.position.x - sqrt(COLLISION_RADIUS * COLLISION_RADIUS - (y - obstacle.position.y) * (y - obstacle.position.y));
+                    double x1 = obstacle.position.x + sqrt(COLLISION_RADIUS * COLLISION_RADIUS - (y - obstacle.position.y) * (y - obstacle.position.y));
+                    for(double x=x0;x<=x1;x+=RESOLUTION){
+                        if(-MAP_WIDTH_2 < x && x < MAP_WIDTH_2){
+                            int index = get_index(local_costmap, x, y);
+                            if(0 <= index && index < map_size){
+                                local_costmap.data[index] = 100;
                             }
                         }
                     }
                 }
             }
         }
-        map_pub.publish(local_costmap);
-        ros::spinOnce();
-        loop_rate.sleep();
     }
+    map_pub.publish(local_costmap);
+}
+
+void FakeLocalCostmapGenerator::process(void)
+{
+    ros::spin();
 }
 
 inline int FakeLocalCostmapGenerator::get_i_from_x(const nav_msgs::OccupancyGrid& map, double x)
