@@ -2,6 +2,10 @@
     - roslaunch
     - slp_doa
     - local_planner.launch
+# -
+#     - roslaunch
+#     - cadrl_ros
+#     - cadrl_node.launch
 -
     - roslaunch
     - slp_doa
