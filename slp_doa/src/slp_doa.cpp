@@ -134,9 +134,9 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
     obstacle_paths.header.frame_id = WORLD_FRAME;
     obstacle_paths.poses.clear();
     for(int i=0;i<obs_num;i++){
-        std::cout << "obstacle " << i << ": "<< std::endl;
-        std::cout << obstacle_states_list[i].pos[0] << std::endl;
-        std::cout << obstacle_states_list[i].vel[0] << std::endl;
+        // std::cout << "obstacle " << i << ": "<< std::endl;
+        // std::cout << obstacle_states_list[i].pos[0] << std::endl;
+        // std::cout << obstacle_states_list[i].vel[0] << std::endl;
         for(unsigned int j=0;j<PREDICTION_STEP;j++){
             geometry_msgs::Pose p;
             p.position.x = obstacle_states_list[i].pos[j](0);
@@ -147,7 +147,7 @@ void SLPDOA::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
             obstacle_paths.poses.push_back(p);
         }
     }
-    std::cout << "obs num: " << obs_num << std::endl;
+    // std::cout << "obs num: " << obs_num << std::endl;
     std::cout << "obs path num: " << obstacle_paths.poses.size() << std::endl;
     obstacles_predicted_path_pub.publish(obstacle_paths);
 }
