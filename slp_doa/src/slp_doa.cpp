@@ -177,7 +177,7 @@ SLPDOA::ProbabilityWithTimeStep SLPDOA::get_collision_probability(const nav_msgs
     double max_collision_probability = 0;
     unsigned int max_collision_probability_time = 0;
     probabilities.resize(trajectory.size());
-    for(unsigned int i=0;i<size;i++){
+    for(unsigned int i=1;i<size;i++){
         // std::cout << "i: " << i << std::endl;
         probabilities[i] = 0.0;
         int xi = round((trajectory[i](0) - local_costmap.info.origin.position.x) / resolution);
@@ -344,6 +344,16 @@ void SLPDOA::process(void)
             generate_biased_polar_states(N_S, goal, sampling_params, target_velocity, states);
             std::vector<MotionModelDiffDrive::Trajectory> trajectories;
             bool generated = generate_trajectories(states, current_velocity.linear.x, current_velocity.angular.z, target_velocity, trajectories);
+            bool turn_flag = false;
+            double relative_direction = atan2(local_goal_base_link.pose.position.y, local_goal_base_link.pose.position.x);
+            if(goal.segment(0, 2).norm() < 0.1){
+                generated = false;
+            }else if(fabs(relative_direction) > TURN_DIRECTION_THRESHOLD){
+                // if(fabs(goal(2)) > TURN_DIRECTION_THRESHOLD){
+                    generated = false;
+                    turn_flag = true;
+                // }
+            }
             std::cout << "trajectories generation time: " << ros::Time::now().toSec() - start << "[s]" << std::endl;
             if(generated){
                 std::cout << "check candidate trajectories" << std::endl;
@@ -418,10 +428,13 @@ void SLPDOA::process(void)
             }else{
                 std::cout << "\033[91mERROR: no optimized trajectory was generated\033[00m" << std::endl;
                 std::cout << "\033[91mturn for local goal\033[00m" << std::endl;
-                double relative_direction = atan2(local_goal_base_link.pose.position.y, local_goal_base_link.pose.position.x);
                 geometry_msgs::Twist cmd_vel;
                 cmd_vel.linear.x = 0;
-                cmd_vel.angular.z =  0.2 * ((relative_direction > 0) ? 1 : -1);
+                double yaw_rate = turn_flag ? relative_direction : goal(2);
+                double d_yaw_rate =  (yaw_rate - current_velocity.angular.z) / DT;
+                d_yaw_rate = std::min(std::max(d_yaw_rate, -MAX_D_YAWRATE), MAX_D_YAWRATE);
+                yaw_rate = current_velocity.angular.z + d_yaw_rate * DT;
+                cmd_vel.angular.z = std::min(std::max(yaw_rate, -MAX_YAWRATE), MAX_YAWRATE);
                 velocity_pub.publish(cmd_vel);
                 // for clear
                 std::vector<MotionModelDiffDrive::Trajectory> clear_trajectories;
