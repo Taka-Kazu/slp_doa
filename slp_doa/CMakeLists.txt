@@ -42,7 +42,7 @@ add_library(slp_doa_lib
 
 add_dependencies(slp_doa_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(slp_doa src/slp_doa_node.cpp)
+add_executable(slp_doa src/slp_doa_node.cpp src/slp_doa_ros.cpp)
 add_executable(fake_local_costmap_generator src/fake_local_costmap_generator.cpp)
 add_executable(fake_local_goal_publisher src/fake_local_goal_publisher.cpp)
 
@@ -64,14 +64,14 @@ target_link_libraries(fake_local_goal_publisher
   ${catkin_LIBRARIES}
 )
 
-if(CATKIN_ENABLE_TESTING)
-    find_package(rostest REQUIRED)
-    add_rostest_gtest(slp_doa_test
-        test/slp_doa.test
-        test/slp_doa_test.cpp
-    )
-    target_link_libraries(slp_doa_test
-        ${catkin_LIBRARIES}
-        slp_doa_lib
-    )
-endif()
+# if(CATKIN_ENABLE_TESTING)
+#     find_package(rostest REQUIRED)
+#     add_rostest_gtest(slp_doa_test
+#         test/slp_doa.test
+#         test/slp_doa_test.cpp
+#     )
+#     target_link_libraries(slp_doa_test
+#         ${catkin_LIBRARIES}
+#         slp_doa_lib
+#     )
+# endif()
