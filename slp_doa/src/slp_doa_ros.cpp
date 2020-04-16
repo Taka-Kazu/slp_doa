@@ -2,6 +2,30 @@
 
 SLPDOAROS::SLPDOAROS(void)
 {
+    local_nh.param("HZ", HZ, {20});
+    local_nh.param("ROBOT_FRAME", ROBOT_FRAME, {"base_link"});
+    local_nh.param("N_P", N_P, {10});
+    local_nh.param("N_H", N_H, {3});
+    local_nh.param("MAX_ALPHA", MAX_ALPHA, {M_PI / 3.0});
+    local_nh.param("MAX_PSI", MAX_PSI, {M_PI / 6.0});
+    local_nh.param("N_S", N_S, {1000});
+    local_nh.param("MAX_ACCELERATION", MAX_ACCELERATION, {1.0});
+    local_nh.param("TARGET_VELOCITY", TARGET_VELOCITY, {0.8});
+    local_nh.param("LOOKUP_TABLE_FILE_NAME", LOOKUP_TABLE_FILE_NAME, {std::string(std::getenv("HOME")) + "/lookup_table.csv"});
+    local_nh.param("MAX_ITERATION", MAX_ITERATION, {100});
+    local_nh.param("OPTIMIZATION_TOLERANCE", OPTIMIZATION_TOLERANCE, {0.1});
+    local_nh.param("MAX_YAWRATE", MAX_YAWRATE, {0.8});
+    local_nh.param("MAX_D_YAWRATE", MAX_D_YAWRATE, {2.0});
+    local_nh.param("MAX_WHEEL_ANGULAR_VELOCITY", MAX_WHEEL_ANGULAR_VELOCITY, {11.6});
+    local_nh.param("WHEEL_RADIUS", WHEEL_RADIUS, {0.125});
+    local_nh.param("TREAD", TREAD, {0.5});
+    local_nh.param("IGNORABLE_OBSTACLE_RANGE", IGNORABLE_OBSTACLE_RANGE, {1.0});
+    local_nh.param("VERBOSE", VERBOSE, {false});
+    local_nh.param("CONTROL_DELAY", CONTROL_DELAY, {1});
+    local_nh.param("TURN_DIRECTION_THRESHOLD", TURN_DIRECTION_THRESHOLD, {M_PI/4.0});
+    local_nh.param("ENABLE_SHARP_TRAJECTORY", ENABLE_SHARP_TRAJECTORY, {false});
+    local_nh.param("ENABLE_CONTROL_SPACE_SAMPLING", ENABLE_CONTROL_SPACE_SAMPLING, {false});
+    //
     local_nh.param("PREDICTION_TIME", PREDICTION_TIME, {3.5});
     local_nh.param("COLLISION_PROBABILITY_THRESHOLD", COLLISION_PROBABILITY_THRESHOLD, {0.1});
     local_nh.param("WORLD_FRAME", WORLD_FRAME, {"map"});
@@ -14,18 +38,92 @@ SLPDOAROS::SLPDOAROS(void)
     }
 
     std::cout << "====== slp_doa ======" << std::endl;
-
+    std::cout << "HZ: " << HZ << std::endl;
+    std::cout << "ROBOT_FRAME: " << ROBOT_FRAME << std::endl;
+    std::cout << "N_P: " << N_P << std::endl;
+    std::cout << "N_H: " << N_H << std::endl;
+    std::cout << "MAX_ALPHA: " << MAX_ALPHA << std::endl;
+    std::cout << "MAX_PSI: " << MAX_PSI << std::endl;
+    std::cout << "N_S: " << N_S << std::endl;
+    std::cout << "MAX_ACCELERATION: " << MAX_ACCELERATION << std::endl;
+    std::cout << "TARGET_VELOCITY: " << TARGET_VELOCITY << std::endl;
+    std::cout << "LOOKUP_TABLE_FILE_NAME: " << LOOKUP_TABLE_FILE_NAME << std::endl;
+    std::cout << "MAX_ITERATION: " << MAX_ITERATION << std::endl;
+    std::cout << "OPTIMIZATION_TOLERANCE: " << OPTIMIZATION_TOLERANCE << std::endl;
+    std::cout << "MAX_YAWRATE: " << MAX_YAWRATE << std::endl;
+    std::cout << "MAX_D_YAWRATE: " << MAX_D_YAWRATE << std::endl;
+    std::cout << "MAX_WHEEL_ANGULAR_VELOCITY: " << MAX_WHEEL_ANGULAR_VELOCITY << std::endl;
+    std::cout << "WHEEL_RADIUS: " << WHEEL_RADIUS << std::endl;
+    std::cout << "TREAD: " << TREAD << std::endl;
+    std::cout << "IGNORABLE_OBSTACLE_RANGE: " << IGNORABLE_OBSTACLE_RANGE << std::endl;
+    std::cout << "VERBOSE: " << VERBOSE << std::endl;
+    std::cout << "CONTROL_DELAY: " << CONTROL_DELAY << std::endl;
+    std::cout << "TURN_DIRECTION_THRESHOLD: " << TURN_DIRECTION_THRESHOLD << std::endl;
+    std::cout << "ENABLE_SHARP_TRAJECTORY: " << ENABLE_SHARP_TRAJECTORY << std::endl;
+    std::cout << "ENABLE_CONTROL_SPACE_SAMPLING: " << ENABLE_CONTROL_SPACE_SAMPLING << std::endl;
     std::cout << "PREDICTION_TIME: " << PREDICTION_TIME << std::endl;
     std::cout << "PREDICTION_STEP: " << PREDICTION_STEP << std::endl;
     std::cout << "COLLISION_PROBABILITY_THRESHOLD: " << COLLISION_PROBABILITY_THRESHOLD << std::endl;
     std::cout << "WORLD_FRAME: " << WORLD_FRAME << std::endl;
 
+    slp_doa_planner.set_sampling_params(StateLatticePlanner::SamplingParams(N_P, N_H, MAX_ALPHA, MAX_PSI));
+    slp_doa_planner.set_optimization_params(MAX_ITERATION, OPTIMIZATION_TOLERANCE);
+    slp_doa_planner.set_vehicle_params(WHEEL_RADIUS, TREAD);
+    slp_doa_planner.set_motion_params(MAX_ACCELERATION, MAX_YAWRATE, MAX_D_YAWRATE);
+    slp_doa_planner.set_target_velocity(TARGET_VELOCITY);
     slp_doa_planner.set_collision_prediction_params(PREDICTION_TIME, DT, COLLISION_PROBABILITY_THRESHOLD);
+
+    velocity_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+    candidate_trajectories_pub = local_nh.advertise<visualization_msgs::MarkerArray>("candidate_trajectories", 1);
+    candidate_trajectories_no_collision_pub = local_nh.advertise<visualization_msgs::MarkerArray>("candidate_trajectories/no_collision", 1);
+    selected_trajectory_pub = local_nh.advertise<visualization_msgs::Marker>("selected_trajectory", 1);
+
+    local_goal_sub = nh.subscribe("/local_goal", 1, &SLPDOAROS::local_goal_callback, this);
+    local_map_sub = nh.subscribe("/local_map", 1, &SLPDOAROS::local_map_callback, this);
+    odom_sub = nh.subscribe("/odom", 1, &SLPDOAROS::odom_callback, this);
+    target_velocity_sub = nh.subscribe("/target_velocity", 1, &SLPDOAROS::target_velocity_callback, this);
+
+    local_goal_subscribed = false;
+    local_map_updated = false;
+    odom_updated = false;
+
+    slp_doa_planner.load_lookup_table(LOOKUP_TABLE_FILE_NAME);
 
     obstacles_predicted_path_pub = local_nh.advertise<geometry_msgs::PoseArray>("/obstacle_predicted_paths", 1);
     probability_map_pub = local_nh.advertise<nav_msgs::OccupancyGrid>("/probability_map", 1);
     obstacle_pose_sub = nh.subscribe("/dynamic_obstacles", 1, &SLPDOAROS::obstacle_pose_callback, this);
     std::cout << std::endl;
+}
+
+void SLPDOAROS::local_goal_callback(const geometry_msgs::PoseStampedConstPtr& msg)
+{
+    local_goal = *msg;
+    try{
+        listener.transformPose("/odom", ros::Time(0), local_goal, local_goal.header.frame_id, local_goal);
+        local_goal_subscribed = true;
+    }catch(tf::TransformException ex){
+        std::cout << ex.what() << std::endl;
+    }
+}
+
+void SLPDOAROS::local_map_callback(const nav_msgs::OccupancyGridConstPtr& msg)
+{
+    local_map = *msg;
+    local_map_updated = true;
+}
+
+void SLPDOAROS::odom_callback(const nav_msgs::OdometryConstPtr& msg)
+{
+    current_velocity = msg->twist.twist;
+    odom_updated = true;
+}
+
+void SLPDOAROS::target_velocity_callback(const geometry_msgs::TwistConstPtr& msg)
+{
+    if(msg->linear.x > 0.0){
+        TARGET_VELOCITY = msg->linear.x;
+        std::cout << "\033[31mtarget velocity was updated to " << TARGET_VELOCITY << "[m/s]\033[0m" << std::endl;
+    }
 }
 
 void SLPDOAROS::obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr& msg)
@@ -105,11 +203,10 @@ SLPDOA::ProbabilityWithTimeStep SLPDOAROS::get_collision_probability(const nav_m
         affine = trans * q;
     }catch(tf::TransformException ex){
         std::cout << ex.what() << std::endl;
-        return ProbabilityWithTimeStep(0, 1.0);
+        return SLPDOA::ProbabilityWithTimeStep(0, 1.0);
     }
     state_lattice_planner::ObstacleMap<int> local_costmap_;
-    ////
-    ////
+    get_obstacle_map(local_costmap, local_costmap_);
     return slp_doa_planner.get_collision_probability(local_costmap_, trajectory, affine, probabilities);
 }
 
@@ -195,8 +292,8 @@ void SLPDOAROS::process(void)
             std::cout << "current_velocity: \n" << current_velocity << std::endl;
             Eigen::Vector3d goal(local_goal_base_link.pose.position.x, local_goal_base_link.pose.position.y, tf::getYaw(local_goal_base_link.pose.orientation));
             std::vector<Eigen::Vector3d> states;
-            double target_velocity = get_target_velocity(goal);
-            slp_doa_planner.generate_biased_polar_states(N_S, goal, sampling_params, target_velocity, states);
+            double target_velocity = slp_doa_planner.get_target_velocity(goal);
+            slp_doa_planner.generate_biased_polar_states(N_S, goal, target_velocity, states);
             std::vector<MotionModelDiffDrive::Trajectory> trajectories;
             bool generated = slp_doa_planner.generate_trajectories(states, current_velocity.linear.x, current_velocity.angular.z, target_velocity, trajectories);
             bool turn_flag = false;
@@ -314,6 +411,74 @@ void SLPDOAROS::process(void)
         ros::spinOnce();
         loop_rate.sleep();
     }
+}
+
+void SLPDOAROS::visualize_trajectories(const std::vector<MotionModelDiffDrive::Trajectory>& trajectories, const double r, const double g, const double b, const int trajectories_size, const ros::Publisher& pub)
+{
+    visualization_msgs::MarkerArray v_trajectories;
+    int count = 0;
+    const int size = trajectories.size();
+    for(;count<size;count++){
+        visualization_msgs::Marker v_trajectory;
+        v_trajectory.header.frame_id = ROBOT_FRAME;
+        v_trajectory.header.stamp = ros::Time::now();
+        v_trajectory.color.r = r;
+        v_trajectory.color.g = g;
+        v_trajectory.color.b = b;
+        v_trajectory.color.a = 0.8;
+        v_trajectory.ns = pub.getTopic();
+        v_trajectory.type = visualization_msgs::Marker::LINE_STRIP;
+        v_trajectory.action = visualization_msgs::Marker::ADD;
+        v_trajectory.lifetime = ros::Duration();
+        v_trajectory.id = count;
+        v_trajectory.pose.orientation.w = 1.0;
+        v_trajectory.scale.x = 0.02;
+        geometry_msgs::Point p;
+        for(const auto& pose : trajectories[count].trajectory){
+            p.x = pose(0);
+            p.y = pose(1);
+            v_trajectory.points.push_back(p);
+        }
+        v_trajectories.markers.push_back(v_trajectory);
+    }
+    for(;count<trajectories_size;){
+        visualization_msgs::Marker v_trajectory;
+        v_trajectory.header.frame_id = ROBOT_FRAME;
+        v_trajectory.header.stamp = ros::Time::now();
+        v_trajectory.ns = pub.getTopic();
+        v_trajectory.type = visualization_msgs::Marker::LINE_STRIP;
+        v_trajectory.action = visualization_msgs::Marker::DELETE;
+        v_trajectory.lifetime = ros::Duration();
+        v_trajectory.id = count;
+        v_trajectories.markers.push_back(v_trajectory);
+        count++;
+    }
+    pub.publish(v_trajectories);
+}
+
+void SLPDOAROS::visualize_trajectory(const MotionModelDiffDrive::Trajectory& trajectory, const double r, const double g, const double b, const ros::Publisher& pub)
+{
+    visualization_msgs::Marker v_trajectory;
+    v_trajectory.header.frame_id = ROBOT_FRAME;
+    v_trajectory.header.stamp = ros::Time::now();
+    v_trajectory.color.r = r;
+    v_trajectory.color.g = g;
+    v_trajectory.color.b = b;
+    v_trajectory.color.a = 0.8;
+    v_trajectory.ns = pub.getTopic();
+    v_trajectory.type = visualization_msgs::Marker::LINE_STRIP;
+    v_trajectory.action = visualization_msgs::Marker::ADD;
+    v_trajectory.lifetime = ros::Duration();
+    v_trajectory.pose.orientation.w = 1.0;
+    v_trajectory.pose.position.z = 0.1;
+    v_trajectory.scale.x = 0.10;
+    geometry_msgs::Point p;
+    for(const auto& pose : trajectory.trajectory){
+        p.x = pose(0);
+        p.y = pose(1);
+        v_trajectory.points.push_back(p);
+    }
+    pub.publish(v_trajectory);
 }
 
 template<typename TYPE>
